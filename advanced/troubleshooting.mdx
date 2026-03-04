@@ -11,7 +11,7 @@ This guide covers common issues you might encounter when using toni and how to r
 
 **Symptom**: You see an error message:
 
-```
+```text
 Terminal too small
 72x18 detected, need at least 72x18
 ```
@@ -65,7 +65,7 @@ printf '\e[8;30;100t'  # Resize to 30 rows, 100 columns (if your terminal suppor
 
 **Symptom**: You see one of these messages:
 
-```
+```text
 ℹ  No YELP_API_KEY set — restaurant autocomplete disabled
 ℹ  Yelp autocomplete disabled in onboarding settings
 ```
@@ -179,7 +179,7 @@ printf '\e[8;30;100t'  # Resize to 30 rows, 100 columns (if your terminal suppor
 
 **Symptom**: Error messages containing:
 
-```
+```text
 failed to open database: database is locked
 ```
 
@@ -217,7 +217,7 @@ failed to open database: database is locked
 
 **Symptom**: Errors like:
 
-```
+```text
 failed to initialize schema: database disk image is malformed
 failed to get restaurant: database disk image is malformed
 ```
@@ -258,7 +258,7 @@ sqlite3 ~/.toni/toni.db "PRAGMA integrity_check;"
 
 **Symptom**:
 
-```
+```text
 failed to create config directory: mkdir ~/.toni: permission denied
 failed to open database: unable to open database file
 ```
@@ -292,7 +292,7 @@ failed to open database: unable to open database file
 
 **Symptom**:
 
-```
+```text
 failed to initialize schema: ...
 ```
 
