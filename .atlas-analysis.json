@@ -1,0 +1,88 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "toni",
+  "projectDescription": "A local-first TUI for logging, rating, and reviewing restaurant visits",
+  "theme": "almond",
+  "primaryColor": "#8FA082",
+  "lightColor": "#D6E0D3",
+  "darkColor": "#2A332C",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Usage",
+            "pages": [
+              "usage/logging-visits",
+              "usage/managing-restaurants",
+              "usage/want-to-visit",
+              "usage/keybindings"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/database",
+              "configuration/yelp-integration",
+              "configuration/preferences"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/data-model",
+              "advanced/backup-restore",
+              "advanced/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/architecture",
+              "development/project-structure",
+              "development/tech-stack"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "development/building-from-source",
+              "development/contributing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Local-first SQLite storage",
+    "Vim-style keyboard navigation",
+    "Yelp API restaurant autocomplete",
+    "Restaurant visit tracking and rating",
+    "Want-to-visit list management",
+    "Offline-first with optional Yelp integration"
+  ],
+  "publicApiSurface": [
+    "toni (main command)",
+    "toni --db <path> (custom database location)",
+    "toni --yelp-key <key> (Yelp API key)",
+    "toni --version (show version)",
+    "Navigation: j/k/h/l/gg/G/ctrl+d/ctrl+u",
+    "Actions: a (add), e (edit), d (delete), v (add visit)",
+    "Screens: Visits, Restaurants, Want to Visit"
+  ]
+}
