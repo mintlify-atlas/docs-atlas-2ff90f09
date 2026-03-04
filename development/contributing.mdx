@@ -1,0 +1,661 @@
+---
+title: Contributing Guide
+description: Code style, conventions, and workflow for contributing to toni
+---
+
+## Welcome Contributors!
+
+toni is a small, focused project that welcomes contributions of all kinds:
+
+- Bug fixes and error handling improvements
+- UI/UX enhancements
+- New features (restaurant photos, export, tags, etc.)
+- Performance optimizations
+- Documentation improvements
+- Test coverage
+
+<Note>
+Before starting major work, **open an issue** to discuss the approach. This prevents duplicate effort and ensures alignment with project goals.
+</Note>
+
+---
+
+## Getting Started
+
+<Steps>
+  <Step title="Fork the repository">
+    Click **Fork** on GitHub to create your own copy
+  </Step>
+  
+  <Step title="Clone your fork">
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/toni.git
+    cd toni
+    ```
+  </Step>
+  
+  <Step title="Create a branch">
+    ```bash
+    git checkout -b fix/visit-date-validation
+    # or
+    git checkout -b feature/export-csv
+    ```
+  </Step>
+  
+  <Step title="Make changes">
+    Edit code, test locally, commit frequently
+  </Step>
+  
+  <Step title="Push and open PR">
+    ```bash
+    git push origin fix/visit-date-validation
+    ```
+    
+    Then open a Pull Request on GitHub
+  </Step>
+</Steps>
+
+---
+
+## Code Style
+
+### Go Conventions
+
+toni follows **standard Go style**:
+
+- Use `gofmt` for formatting (run `go fmt ./...`)
+- Follow [Effective Go](https://go.dev/doc/effective_go)
+- Follow [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
+
+**Key conventions**:
+
+<CodeGroup>
+```go Naming
+// Exported types: PascalCase
+type RestaurantDetail struct { /* ... */ }
+
+// Unexported types: camelCase
+type visitFormState struct { /* ... */ }
+
+// Constants: PascalCase or ALL_CAPS for exported
+const DefaultTimeout = 5 * time.Second
+const maxRetries = 3
+
+// Acronyms: uppercase (ID, not Id; URL, not Url)
+type VisitID int64
+```
+
+```go Error Handling
+// Wrap errors with context
+if err != nil {
+    return fmt.Errorf("failed to load visits: %w", err)
+}
+
+// Don't panic - return errors
+func LoadConfig() (*Config, error) {
+    // NOT: panic("config missing")
+    if _, err := os.Stat(path); err != nil {
+        return nil, fmt.Errorf("config not found: %w", err)
+    }
+}
+```
+
+```go Comments
+// Package comment at top of file
+// Package db provides database operations for toni.
+package db
+
+// Exported function: doc comment
+// ListVisits returns all visits, optionally filtered by restaurant name.
+func ListVisits(db *sql.DB, filter string) ([]model.VisitRow, error) {
+    // ...
+}
+
+// Complex logic: inline comments
+// Convert Yelp's 1-5 rating to toni's 1-10 scale
+rating := yelpRating * 2.0
+```
+</CodeGroup>
+
+---
+
+### Project-Specific Conventions
+
+#### Layer Boundaries
+
+**Database layer** (`internal/db/`):
+- Functions accept `*sql.DB` as first parameter
+- Return domain types from `internal/model`
+- Never return `*sql.Rows` or `sql.Result` directly
+- Use descriptive function names: `GetRestaurantWithStats`, not `GetRestaurant2`
+
+```go
+// Good
+func ListVisits(db *sql.DB, filter string) ([]model.VisitRow, error)
+
+// Bad
+func GetVisits(db *sql.DB) (*sql.Rows, error)
+```
+
+---
+
+#### Message Types
+
+**Bubble Tea messages** (`internal/model/msg.go`):
+- Suffix with `Msg`: `VisitsLoadedMsg`, not `VisitsLoaded`
+- Include context for debugging: operation type, before/after state
+- Document when messages trigger commands
+
+```go
+// Good: includes undo context
+type VisitSavedMsg struct {
+    ID        int64
+    Operation string  // "insert" or "update"
+    Before    *Visit  // nil for insert
+    After     Visit
+}
+
+// Bad: not enough context
+type VisitSavedMsg struct {
+    ID int64
+}
+```
+
+---
+
+#### UI Components
+
+**Bubble Tea models** (`internal/ui/`):
+- Implement `Init()`, `Update()`, `View()` interface
+- Keep `View()` pure - no side effects
+- Use `tea.Cmd` for async operations, never block in `Update()`
+
+```go
+// Good: async database query
+func (m Model) handleSave() (tea.Model, tea.Cmd) {
+    return m, saveVisitCmd(m.db, m.visitForm.data)
+}
+
+func saveVisitCmd(db *sql.DB, data VisitData) tea.Cmd {
+    return func() tea.Msg {
+        // Runs in background
+        id, err := db.CreateVisit(db, data)
+        if err != nil {
+            return ErrorMsg{Err: err}
+        }
+        return VisitSavedMsg{ID: id}
+    }
+}
+
+// Bad: blocking in Update
+func (m Model) handleSave() (tea.Model, tea.Cmd) {
+    id, err := db.CreateVisit(m.db, m.visitForm.data) // BLOCKS!
+    // ...
+}
+```
+
+---
+
+#### Styling
+
+**Lip Gloss styles** (`internal/ui/styles.go`):
+- Define styles as package-level variables
+- Reuse base styles, compose with `Copy()`
+- Use semantic names: `ErrorStyle`, not `RedText`
+
+```go
+// Base styles
+var (
+    ColorPrimary = lipgloss.Color("#7D56F4")
+    ColorError   = lipgloss.Color("#FF6F61")
+)
+
+// Composed styles
+var ErrorStyle = lipgloss.NewStyle().
+    Foreground(ColorError).
+    Bold(true)
+
+var ErrorBanner = ErrorStyle.Copy().
+    Padding(1, 2).
+    Border(lipgloss.RoundedBorder())
+```
+
+---
+
+## Testing
+
+### Manual Testing
+
+**Before submitting a PR**, test:
+
+<CardGroup cols={2}>
+  <Card title="Happy Path" icon="check">
+    - Create restaurant
+    - Log visit with rating
+    - Edit visit
+    - Delete visit
+  </Card>
+  
+  <Card title="Edge Cases" icon="triangle-exclamation">
+    - Empty database
+    - Invalid date formats
+    - Missing required fields
+    - Keyboard shortcuts
+  </Card>
+  
+  <Card title="Terminal Sizes" icon="window-maximize">
+    - Minimum (72×18)
+    - Standard (100×30)
+    - Large (200×50)
+  </Card>
+  
+  <Card title="Terminals" icon="terminal">
+    - iTerm2 / Alacritty
+    - Windows Terminal
+    - Basic xterm
+  </Card>
+</CardGroup>
+
+**Test database**:
+```bash
+# Use a throwaway database
+go run main.go --db ./test.db
+
+# Start fresh each test
+rm ./test.db && go run main.go --db ./test.db
+```
+
+---
+
+### Automated Tests
+
+**When adding tests** (currently none exist):
+
+```go
+// internal/db/visits_test.go
+func TestCreateVisit(t *testing.T) {
+    db := setupTestDB(t)
+    defer db.Close()
+    
+    visit := model.NewVisit{
+        RestaurantID: 1,
+        VisitedOn:    "2026-03-04",
+        Rating:       ptr(8.5),
+    }
+    
+    id, err := CreateVisit(db, visit)
+    if err != nil {
+        t.Fatalf("CreateVisit failed: %v", err)
+    }
+    if id == 0 {
+        t.Error("Expected non-zero ID")
+    }
+}
+```
+
+**Test helpers**:
+- `setupTestDB(t)` - Create in-memory SQLite DB
+- `ptr(v)` - Helper for pointer values
+- Table-driven tests for multiple cases
+
+---
+
+## Pull Request Guidelines
+
+### PR Title Format
+
+Use conventional commits style:
+
+```
+feat: add CSV export functionality
+fix: correct date validation in visit form
+docs: update architecture diagram
+refactor: extract table component
+perf: optimize visit list query
+test: add database layer tests
+```
+
+**Prefixes**:
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation only
+- `refactor:` - Code restructuring, no behavior change
+- `perf:` - Performance improvement
+- `test:` - Add or update tests
+- `chore:` - Build, dependencies, tooling
+
+---
+
+### PR Description Template
+
+```markdown
+## Summary
+Brief description of what this PR does.
+
+## Motivation
+Why is this change needed? What problem does it solve?
+
+## Changes
+- List specific changes
+- One per line
+- Be specific
+
+## Testing
+How did you test this?
+- [ ] Tested in iTerm2
+- [ ] Tested with empty database
+- [ ] Tested keyboard shortcuts
+
+## Screenshots (if UI change)
+[Attach before/after screenshots]
+
+## Checklist
+- [ ] Code follows project style
+- [ ] Manual testing completed
+- [ ] No new warnings or errors
+- [ ] Documentation updated (if needed)
+```
+
+---
+
+### Review Process
+
+<Steps>
+  <Step title="Self-review">
+    Before requesting review:
+    - Read your own diff
+    - Run `go fmt ./...`
+    - Test all changed functionality
+    - Check for leftover debug code
+  </Step>
+  
+  <Step title="CI checks">
+    Wait for automated checks (when added):
+    - Build succeeds
+    - Tests pass
+    - Linter passes
+  </Step>
+  
+  <Step title="Maintainer review">
+    Maintainers will:
+    - Review code quality
+    - Test functionality
+    - Suggest improvements
+    - Approve or request changes
+  </Step>
+  
+  <Step title="Merge">
+    After approval:
+    - Squash and merge (usually)
+    - Delete branch
+  </Step>
+</Steps>
+
+**Response time**: Expect review within 3-5 days. Ping after 1 week if no response.
+
+---
+
+## Common Contribution Patterns
+
+### Adding a New Screen
+
+<Steps>
+  <Step title="Define screen enum">
+    ```go
+    // internal/model/msg.go
+    const (
+        // ...
+        ScreenExport Screen = iota
+    )
+    ```
+  </Step>
+  
+  <Step title="Create screen model">
+    ```go
+    // internal/ui/export.go
+    type ExportModel struct {
+        // state
+    }
+    
+    func (m ExportModel) Update(msg tea.Msg) (ExportModel, tea.Cmd)
+    func (m ExportModel) View(width, height int) string
+    ```
+  </Step>
+  
+  <Step title="Add to root model">
+    ```go
+    // internal/ui/app.go
+    type Model struct {
+        // ...
+        export *ExportModel
+    }
+    ```
+  </Step>
+  
+  <Step title="Handle in Update">
+    ```go
+    case model.ScreenExport:
+        if m.export != nil {
+            content = m.export.View(m.width, contentHeight)
+        }
+    ```
+  </Step>
+  
+  <Step title="Add navigation">
+    ```go
+    case "x": // Export shortcut
+        m.screen = model.ScreenExport
+        m.export = NewExportModel()
+        return m, nil
+    ```
+  </Step>
+</Steps>
+
+---
+
+### Adding a Database Column
+
+<Steps>
+  <Step title="Create migration">
+    ```go
+    // internal/db/migrations.go (create if needed)
+    const migration002 = `
+    ALTER TABLE visits ADD COLUMN photos TEXT;
+    `
+    ```
+  </Step>
+  
+  <Step title="Update schema version">
+    ```go
+    // internal/db/db.go
+    const schemaVersion = 2
+    
+    func migrate(db *sql.DB) error {
+        // Check current version, run migrations
+    }
+    ```
+  </Step>
+  
+  <Step title="Update model types">
+    ```go
+    // internal/model/types.go
+    type Visit struct {
+        // ...
+        Photos string
+    }
+    ```
+  </Step>
+  
+  <Step title="Update queries">
+    ```go
+    // internal/db/visits.go
+    const createVisitSQL = `
+        INSERT INTO visits (restaurant_id, visited_on, rating, notes, photos)
+        VALUES (?, ?, ?, ?, ?)
+    `
+    ```
+  </Step>
+</Steps>
+
+<Note>
+Always test migrations with existing databases! Don't break user data.
+</Note>
+
+---
+
+### Adding a Keybinding
+
+<Steps>
+  <Step title="Define key">
+    ```go
+    // internal/ui/keys.go
+    type KeyMap struct {
+        // ...
+        Export key.Binding
+    }
+    
+    func DefaultKeyMap() KeyMap {
+        return KeyMap{
+            // ...
+            Export: key.NewBinding(
+                key.WithKeys("x"),
+                key.WithHelp("x", "export"),
+            ),
+        }
+    }
+    ```
+  </Step>
+  
+  <Step title="Handle in Update">
+    ```go
+    // internal/ui/app.go
+    case "x":
+        return m.handleExport()
+    ```
+  </Step>
+  
+  <Step title="Update help">
+    ```go
+    // internal/ui/help.go
+    func RenderHelp(screen Screen, mode Mode, width int) string {
+        // Add to relevant screen's help text
+    }
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Development Tips
+
+### Debugging TUI Apps
+
+**Problem**: `fmt.Println()` doesn't work in full-screen TUI.
+
+**Solution**: Log to a file.
+
+```go
+// At startup
+logFile, _ := os.OpenFile("/tmp/toni.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+defer logFile.Close()
+log.SetOutput(logFile)
+
+// In code
+log.Printf("Debug: visitID=%d, rating=%v", visitID, rating)
+```
+
+Then tail the log:
+```bash
+tail -f /tmp/toni.log
+```
+
+---
+
+### Quick Iteration
+
+**Watch for changes and rebuild**:
+```bash
+# Install air (live reload)
+go install github.com/cosmtrek/air@latest
+
+# Run with auto-reload
+air
+```
+
+Or use a simple watch script:
+```bash
+#!/bin/bash
+while true; do
+  go build -o toni . && ./toni --db ./test.db
+  sleep 1
+done
+```
+
+---
+
+### Testing Terminal Output
+
+**Capture rendered output**:
+```go
+// In test
+import "github.com/charmbracelet/x/exp/teatest"
+
+func TestVisitsList(t *testing.T) {
+    model := ui.New(testDB, nil, ui.TerminalCapabilities{})
+    tm := teatest.NewTestModel(t, model)
+    
+    tm.Send(tea.WindowSizeMsg{Width: 100, Height: 30})
+    output := tm.FinalOutput(t)
+    
+    if !strings.Contains(output, "Visits") {
+        t.Error("Expected 'Visits' in output")
+    }
+}
+```
+
+---
+
+## Project Goals and Non-Goals
+
+### Goals ✓
+
+- **Local-first**: All data in SQLite, zero cloud dependencies
+- **Fast**: Startup &lt;100ms, renders &lt;5ms
+- **Keyboard-driven**: Full navigation without mouse
+- **Offline-capable**: Core features work without network
+- **Portable**: Single binary, no installation
+
+### Non-Goals ✗
+
+- **Multi-user**: toni is single-user by design
+- **Web UI**: Terminal-only, no web interface planned
+- **Mobile apps**: Desktop/laptop terminals only
+- **Complex analytics**: Basic stats only, not a BI tool
+- **Social features**: No sharing, reviews, or friends
+
+**When in doubt**, prioritize:
+1. Simplicity over features
+2. Performance over polish
+3. Keyboard over mouse
+4. Local over cloud
+
+---
+
+## Getting Help
+
+**Stuck? Have questions?**
+
+- **GitHub Issues**: [github.com/YOUR_USERNAME/toni/issues](https://github.com)
+- **Discussions**: Use GitHub Discussions for open-ended questions
+- **Code questions**: Open a draft PR and ask for early feedback
+
+---
+
+## Recognition
+
+All contributors will be:
+- Listed in `CONTRIBUTORS.md` (when created)
+- Mentioned in release notes
+- Credited in commit history
+
+Thank you for contributing to toni!

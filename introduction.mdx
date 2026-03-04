@@ -1,0 +1,102 @@
+---
+title: Introduction
+description: A clean, local-first TUI for logging restaurant visits - inspired by Beli, built with Go
+---
+
+# Welcome to toni
+
+A clean, local-first TUI for logging, rating, and reviewing restaurant visits. Single-user, fully offline, zero cloud—inspired by the Beli app.
+
+<CardGroup cols={2}>
+  <Card title="Local-First" icon="database">
+    All data stored in a single SQLite file at `~/.toni/toni.db`. No cloud, no accounts, complete ownership.
+  </Card>
+  <Card title="Vim-Style Navigation" icon="keyboard">
+    Modal interface with familiar keybindings. Navigate with `j/k`, select with `enter`, go back with `h/esc`.
+  </Card>
+  <Card title="Restaurant Autocomplete" icon="magnifying-glass">
+    Powered by Yelp Fusion API (optional). Works perfectly offline without it.
+  </Card>
+  <Card title="Zero Dependencies" icon="bolt">
+    Pure Go, no CGO, no external services. Just a single binary.
+  </Card>
+</CardGroup>
+
+## Overview
+
+toni helps you track where you've eaten, what you thought about it, and where you want to go next. It's designed for keyboard-first workflows with a beautiful terminal UI.
+
+### Three Main Screens
+
+**Visits** - Your dining history with ratings, notes, and "would return" flags
+
+**Want to Visit** - Your restaurant wishlist with priority levels
+
+**Restaurants** - All restaurants you've logged with aggregate stats and visit counts
+
+## Key Features
+
+### Fast Keyboard Workflow
+
+Navigate, search, and add entries without touching the mouse. Press `a` to add, `j/k` to move, `enter` to open details, and `?` for help anytime.
+
+### Beautiful TUI
+
+Clean design with:
+- Polished tables with sortable columns
+- Human-friendly relative dates ("3 days ago")
+- Color-coded ratings (1-10 scale)
+- Tab-based navigation between screens
+
+### Data Model
+
+<CodeGroup>
+```go Restaurant Fields
+type Restaurant struct {
+    ID           int64
+    Name         string
+    Address      string
+    City         string
+    Neighborhood string
+    Cuisine      string
+    PriceRange   string  // $, $$, $$$, $$$$
+    CreatedAt    time.Time
+}
+```
+
+```go Visit Fields
+type Visit struct {
+    ID           int64
+    RestaurantID int64
+    VisitedOn    string    // YYYY-MM-DD
+    Rating       *float64  // 1-10 scale
+    Notes        string
+    WouldReturn  *bool
+    CreatedAt    time.Time
+}
+```
+</CodeGroup>
+
+## Getting Started
+
+Ready to start tracking your dining experiences? Check out the installation guide and quickstart to get up and running in minutes.
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install from source or run directly with Go
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Launch toni and log your first visit in under 2 minutes
+  </Card>
+</CardGroup>
+
+<Note>
+toni is inspired by [Beli](https://beli.ai), a popular iOS app for tracking restaurant visits. This is a local-first, terminal-based alternative for developers and keyboard enthusiasts.
+</Note>
+
+## Tech Stack
+
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
+- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
+- [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
+- [modernc.org/sqlite](https://modernc.org/sqlite) - Pure Go SQLite driver (no CGO)

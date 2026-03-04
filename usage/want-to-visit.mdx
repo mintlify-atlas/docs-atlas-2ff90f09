@@ -1,0 +1,287 @@
+---
+title: Want-to-Visit List
+description: Manage your restaurant wishlist with priority levels and convert entries to visits when you go
+---
+
+The Want-to-Visit list is your restaurant wishlist. Track places you want to try, assign priority levels, and convert them to visits when you go.
+
+## Adding to Want-to-Visit
+
+Create a wishlist entry from the Want to Visit screen:
+
+<Steps>
+  <Step title="Navigate to Want to Visit">
+    Press `w` from any screen or use `b`/`f` tabs
+  </Step>
+  
+  <Step title="Press 'a' to add">
+    Opens the want-to-visit form in insert mode
+  </Step>
+  
+  <Step title="Fill in the form">
+    Complete the entry:
+    
+    - **Restaurant** (required): Name with Yelp autocomplete
+    - **Priority** (optional): 1-5, where 5 is highest priority
+    - **Notes**: Why you want to visit, recommendations, etc.
+  </Step>
+  
+  <Step title="Save with Ctrl+S">
+    Press `ctrl+s` to save or `esc` to cancel
+  </Step>
+</Steps>
+
+## Priority Levels
+
+Assign priority levels to organize your wishlist:
+
+- **5**: Must-try, highest priority
+- **4**: High priority
+- **3**: Medium priority
+- **2**: Low priority
+- **1**: Lowest priority
+- **Blank**: No priority assigned
+
+Priorities help you decide where to eat next. Sort by priority on the Want to Visit screen to see your top choices.
+
+```
+Priority: 5
+```
+
+<Tip>
+Use priority 5 for time-sensitive opportunities (limited menus, special events) or highly recommended places.
+</Tip>
+
+## Restaurant Autocomplete
+
+The want-to-visit form includes Yelp integration:
+
+<Steps>
+  <Step title="Type at least 2 characters">
+    Start typing in the Restaurant field
+  </Step>
+  
+  <Step title="View suggestions">
+    Autocomplete results appear after 300ms with restaurant details
+  </Step>
+  
+  <Step title="Select a suggestion">
+    - `j`/`k`: Navigate results
+    - `enter` or `tab`: Select
+    - `esc`: Close dropdown
+  </Step>
+  
+  <Step title="Auto-populate data">
+    Selecting creates/updates the restaurant with:
+    - Name, address, city
+    - Cuisine type
+    - Price range
+    - Geographic coordinates
+  </Step>
+</Steps>
+
+<Note>
+If you type a restaurant name manually (without selecting from autocomplete), toni creates a basic restaurant entry with just the name.
+</Note>
+
+## Converting to Visits
+
+When you visit a restaurant from your wishlist:
+
+<Steps>
+  <Step title="Open the entry details">
+    Navigate to the entry (`j`/`k`) and press `enter` or `l`
+  </Step>
+  
+  <Step title="Press 'c' to convert">
+    This marks it as visited and opens the visit form
+  </Step>
+  
+  <Step title="Complete the visit details">
+    Fill in:
+    - Visit date (defaults to today)
+    - Rating (1-10)
+    - Would return? (y/n)
+    - Notes about your experience
+  </Step>
+  
+  <Step title="Save the visit">
+    Press `ctrl+s` to save the visit
+  </Step>
+</Steps>
+
+Converting removes the entry from Want-to-Visit and creates a visit record. The restaurant remains in your database.
+
+<Tip>
+Conversions support undo. Press `u` after converting to restore the want-to-visit entry.
+</Tip>
+
+## Managing Entries
+
+### Editing Entries
+
+1. Open the entry detail screen (`enter` from the list)
+2. Press `e` to edit
+3. Update priority, notes, or restaurant
+4. Save with `ctrl+s`
+
+### Deleting Entries
+
+1. Open the entry detail screen
+2. Press `d` to delete
+3. Press `u` to undo if needed
+
+<Note>
+Deleting a want-to-visit entry does NOT delete the restaurant. Only the wishlist entry is removed.
+</Note>
+
+## Viewing Entry Details
+
+The detail screen shows:
+
+- Restaurant name and basic info (city, cuisine, price range)
+- Priority level
+- Notes
+- Date added (CreatedAt timestamp)
+
+### Available Actions
+
+From the detail screen:
+- `c`: Convert to visit
+- `e`: Edit entry
+- `d`: Delete entry
+- `h` or `esc`: Back to list
+
+## Want-to-Visit Data Model
+
+Entries are stored with these fields (from `internal/model/types.go`):
+
+```go
+type WantToVisit struct {
+    ID           int64
+    RestaurantID int64      // Links to restaurant
+    Notes        string
+    Priority     *int       // 1-5, 5 = highest
+    CreatedAt    time.Time
+}
+```
+
+## Using the Notes Field
+
+The notes field (500 character limit) is perfect for:
+
+- **Recommendations**: "Sarah recommended the duck confit"
+- **Source**: "Seen on Eater's Best New Restaurants 2025"
+- **Occasion**: "Save for anniversary dinner"
+- **Dishes to try**: "Must get the omakase"
+- **Reservations**: "Book 2 weeks in advance"
+
+Example:
+```
+Notes: Recommended by James - try the tasting 
+menu. Reservations required. Open Wed-Sun only.
+```
+
+## Organizing Your Wishlist
+
+### Sorting
+
+On the Want to Visit screen, cycle sort on columns:
+
+- **Priority**: See highest priorities first
+- **Date Added**: Recent additions at the top
+- **Restaurant Name**: Alphabetical order
+- **City**: Group by location
+- **Cuisine**: Find specific food types
+
+Press `s` on any column to cycle sort: none → asc → desc → none
+
+### Filtering
+
+Filter your wishlist:
+
+1. Navigate to a cell with the value you want to filter by
+2. Press `n` to filter by that value
+3. Press `N` to clear the filter
+
+Examples:
+- Filter by Priority `5` to see must-try places
+- Filter by City to see options in a specific location
+- Filter by Cuisine to find all Italian restaurants
+
+<Tip>
+Combine sorting and filtering: filter by city, then sort by priority to plan your next dining adventure in that location.
+</Tip>
+
+## Want-to-Visit Keybindings
+
+| Key | Action |
+|-----|--------|
+| `a` | Add new entry |
+| `enter` / `l` | Open entry details |
+| `c` | Convert to visit (from detail screen) |
+| `e` | Edit entry (from detail screen) |
+| `d` | Delete entry (from detail screen) |
+| `j`/`k` | Navigate up/down |
+| `gg` | Jump to top |
+| `G` | Jump to bottom |
+| `ctrl+d` / `ctrl+u` | Half page down/up |
+| `tab` / `shift+tab` | Next/previous column |
+| `s` | Cycle sort on active column |
+| `n` | Filter by selected value |
+| `N` | Clear filters |
+| `c` / `C` | Hide/show columns |
+| `/` then 1-9 | Jump to column |
+| `b`/`f` | Previous/next tab |
+| `v` | Go to visits |
+| `r` | Go to restaurants |
+| `h` or `esc` | Back (from detail) |
+| `u` / `ctrl+r` | Undo/redo |
+
+## Workflow Examples
+
+### Planning a Trip
+
+1. Research restaurants in your destination city
+2. Add them to Want-to-Visit with high priority (4-5)
+3. Add notes about must-try dishes
+4. Sort by priority to plan your itinerary
+5. As you visit, convert entries to visits and rate them
+
+### Tracking Recommendations
+
+1. Friend recommends a restaurant
+2. Add to Want-to-Visit immediately
+3. Notes: "John said the burger is incredible"
+4. Priority: 4 or 5
+5. When you go, convert and see if it lives up to the hype
+
+### Seasonal Planning
+
+1. Add restaurants with seasonal menus
+2. Notes: "Cherry blossom viewing menu, April only"
+3. Priority: 5 for time-sensitive
+4. Set reminder to book in advance
+5. Convert when you visit during the right season
+
+## FAQ
+
+<Accordion title="Can I add the same restaurant to both Visits and Want-to-Visit?">
+No, but you can have multiple visits to a restaurant. The Want-to-Visit list is for places you haven't been yet. Once you convert an entry to a visit, it's removed from the wishlist.
+</Accordion>
+
+<Accordion title="What happens to the restaurant when I convert an entry?">
+The restaurant remains in your database. Converting creates a visit record and removes the want-to-visit entry. The restaurant appears in your Restaurants list with one visit logged.
+</Accordion>
+
+<Accordion title="Can I convert an entry without adding visit details?">
+The conversion process opens the visit form with the restaurant pre-filled. You can leave other fields (rating, notes) blank and just save with the date. All fields except restaurant name are optional.
+</Accordion>
+
+<Accordion title="How do I bulk-add restaurants from a list?">
+Toni doesn't support bulk import. Add entries one at a time using the form. The Yelp autocomplete makes this faster by pre-filling restaurant details.
+</Accordion>
+
+<Accordion title="Can I change the priority scale?">
+No, the priority scale is fixed at 1-5. Use priorities consistently for best results: 5 for must-try, 1 for low priority, blank for no priority.
+</Accordion>

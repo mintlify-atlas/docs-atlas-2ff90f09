@@ -1,80 +1,316 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get up and running with toni in under 2 minutes
 ---
 
-## Get started in three steps
+# Quickstart Guide
 
-Get your documentation site running locally and make your first customization.
+This guide walks you through launching toni, completing the onboarding flow, and logging your first restaurant visit.
 
-### Step 1: Set up your local environment
+## Launch toni
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
+  <Step title="Start the Application">
+    Open your terminal and run:
 
-### Step 2: Deploy your changes
+    ```bash
+    toni
+    ```
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    On first launch, you'll see the onboarding screen.
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Complete Onboarding (First Run Only)">
+    toni will ask if you want to enable Yelp API for restaurant autocomplete.
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    **Option 1: Enable Yelp Autocomplete (Recommended)**
 
-### Step 3: Go live
+    1. Press `y` or `↓` to select "Enable YELP autocomplete"
+    2. Press `Enter` to confirm
+    3. You'll be prompted to enter your API key:
+       - Visit https://www.yelp.com/developers/v3/manage_app
+       - Create an app and copy the API key
+       - Paste it into toni and press `Enter`
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    **Option 2: Skip Yelp Setup (Offline Mode)**
 
-## Next steps
+    1. Press `n` or `↓` to select "Disable YELP autocomplete"
+    2. Press `Enter` to confirm
+    3. toni works perfectly offline—you'll just type restaurant names manually
 
-Now that you have your docs running, explore these key features:
+    <Tip>
+    Yelp's free tier provides 10,000 API calls per month with no credit card required. The autocomplete saves time by filling in restaurant details automatically.
+    </Tip>
+  </Step>
 
-<CardGroup cols={2}>
+  <Step title="Explore the Three Main Screens">
+    After onboarding, you'll land on the **Visits** screen. toni has three main tabs:
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
+    **Visits** - Your dining history (starts empty)
+
+    **Want to Visit** - Your restaurant wishlist
+
+    **Restaurants** - All restaurants you've logged
+
+    Navigate between tabs using:
+    - `b` / `f` - Previous / next tab
+    - `r` - Jump to Restaurants
+    - `w` - Jump to Want to Visit
+    - `v` - Jump to Visits
+  </Step>
+</Steps>
+
+## Log Your First Visit
+
+<Steps>
+  <Step title="Press 'a' to Add a Visit">
+    From the Visits screen, press `a` to open the visit form.
+
+    You'll see a form with these fields:
+    - Restaurant name (required)
+    - Date visited (defaults to today)
+    - Rating (1-10 scale)
+    - Would you return? (Yes/No)
+    - Notes (free text)
+  </Step>
+
+  <Step title="Fill in Restaurant Details">
+    **With Yelp API Enabled:**
+
+    1. Start typing a restaurant name (at least 2 characters)
+    2. Autocomplete suggestions appear below
+    3. Use `j/k` or `↓/↑` to navigate suggestions
+    4. Press `Tab` or `Enter` to select
+    5. Restaurant details (city, cuisine) auto-fill
+
+    **Without Yelp API:**
+
+    1. Type the restaurant name manually
+    2. Press `Tab` to move to the next field
+    3. Fill in city, cuisine, price range manually
+
+    <Note>
+    The restaurant field supports autocomplete when you type 2+ characters. Press `Esc` to dismiss the dropdown if needed.
+    </Note>
+  </Step>
+
+  <Step title="Add Visit Details">
+    Press `Tab` to move between fields:
+
+    **Date** - Format: `YYYY-MM-DD` (defaults to today)
+    ```
+    2026-03-04
+    ```
+
+    **Rating** - 1-10 scale (optional)
+    ```
+    8.5
+    ```
+
+    **Would Return?** - Type `y`, `yes`, `n`, or `no` (optional)
+    ```
+    yes
+    ```
+
+    **Notes** - Free text for your thoughts (optional)
+    ```
+    Amazing pasta carbonara. Service was slow but food made up for it.
+    ```
+
+    <Tip>
+    Use `Shift+Tab` to move to the previous field if you need to go back.
+    </Tip>
+  </Step>
+
+  <Step title="Save Your Visit">
+    Press `Ctrl+S` to save the visit.
+
+    You'll return to the Visits screen and see your entry in the table.
+
+    Press `Esc` anytime to cancel without saving.
+  </Step>
+</Steps>
+
+## Essential Keybindings
+
+From `internal/ui/keys.go:48-171`:
+
+### Navigation Mode (Default)
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `h` / `←` / `esc` | Go back |
+| `l` / `→` / `enter` | Open / select |
+| `gg` | Jump to top |
+| `G` | Jump to bottom |
+| `ctrl+d` | Half page down |
+| `ctrl+u` | Half page up |
+| `?` | Toggle help |
+| `q` | Quit |
+
+### Visits Screen
+
+| Key | Action |
+|-----|--------|
+| `a` | Add new visit |
+| `r` | Go to Restaurants |
+| `w` | Go to Want to Visit |
+| `enter` | Open visit details |
+| `b` / `f` | Previous / next tab |
+
+### Restaurants Screen
+
+| Key | Action |
+|-----|--------|
+| `a` | Add restaurant |
+| `v` | Log visit for selected restaurant |
+| `enter` | Open restaurant details |
+| `h` | Back to Visits |
+
+### Want to Visit Screen
+
+| Key | Action |
+|-----|--------|
+| `a` | Add place to wishlist |
+| `enter` | Open details |
+| `c` | Mark as visited (converts to visit) |
+| `v` | Go to Visits |
+| `r` | Go to Restaurants |
+
+### Detail Screens
+
+| Key | Action |
+|-----|--------|
+| `h` / `esc` | Back to list |
+| `e` | Edit entry |
+| `d` | Delete entry |
+| `v` | Add visit (from restaurant detail) |
+
+### Insert/Edit Mode (Forms)
+
+| Key | Action |
+|-----|--------|
+| `Tab` | Next field |
+| `Shift+Tab` | Previous field |
+| `Ctrl+S` | Save |
+| `Esc` | Cancel |
+
+<Warning>
+When in autocomplete mode (Yelp API enabled), use `j/k` or arrow keys to navigate suggestions, then `Tab` or `Enter` to select. Press `Esc` to dismiss the dropdown.
+</Warning>
+
+## Advanced Navigation
+
+### Table Controls
+
+From the Visits or Restaurants screen:
+
+| Key | Action |
+|-----|--------|
+| `tab` | Next column |
+| `shift+tab` | Previous column |
+| `/` then `1-9` | Jump to specific column |
+| `s` | Cycle sort (none → asc → desc → none) |
+| `c` | Hide active column |
+| `C` | Show all columns |
+| `n` | Filter by selected cell value |
+| `N` | Clear filter |
+
+### Undo/Redo
+
+From `internal/ui/keys.go:162-169`:
+
+| Key | Action |
+|-----|--------|
+| `u` | Undo last action |
+| `Ctrl+R` | Redo |
+
+<Tip>
+Press `?` anytime to see the full help screen with all available keybindings.
+</Tip>
+
+## Example Workflow
+
+Here's a typical workflow for tracking a restaurant visit:
+
+<CodeGroup>
+```bash Add a Visit
+# 1. Launch toni
+toni
+
+# 2. Press 'a' from Visits screen
+# 3. Type restaurant name: "Roberta's"
+# 4. Select from autocomplete (if enabled)
+# 5. Tab to date field (defaults to today)
+# 6. Tab to rating: "9"
+# 7. Tab to would return: "yes"
+# 8. Tab to notes: "Best wood-fired pizza in Brooklyn"
+# 9. Ctrl+S to save
+```
+
+```bash Browse Restaurants
+# From Visits screen, press 'r'
+# Navigate with j/k
+# Press 'enter' on a restaurant to see:
+#   - All visits to that restaurant
+#   - Average rating
+#   - Last visit date
+# Press 'v' to log a new visit
+```
+
+```bash Add to Wishlist
+# Press 'w' to go to Want to Visit
+# Press 'a' to add a place
+# When you visit it, press 'c' to convert to a visit
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### Terminal Too Small
+
+If you see "Terminal too small", toni requires at least **72x18** characters. Resize your terminal or reduce font size.
+
+### Yelp API Not Working
+
+From `main.go:26-34`, if Yelp autocomplete isn't working:
+
+1. Check that your API key is set:
+   ```bash
+   cat ~/.toni/yelp_api_key
+   ```
+
+2. Verify the key is valid at https://www.yelp.com/developers/v3/manage_app
+
+3. Re-run onboarding by deleting the config:
+   ```bash
+   rm ~/.toni/onboarding.json
+   toni
+   ```
+
+### Database Issues
+
+If toni won't start due to database errors:
+
+```bash
+# Backup your database first
+cp ~/.toni/toni.db ~/.toni/toni.db.backup
+
+# Try opening with sqlite3 to check integrity
+sqlite3 ~/.toni/toni.db "PRAGMA integrity_check;"
+```
+
+## Next Steps
+
+Now that you've logged your first visit, explore more features:
+
+- Use the **Restaurants** screen to see aggregate stats and visit history
+- Build a wishlist in **Want to Visit** for places you want to try
+- Press `?` to see the full help screen with all keybindings
+- Sort and filter tables with `s` and `n` for powerful data exploration
+
+<Card title="Full Documentation" icon="book" href="/introduction">
+  Learn about all features, data model, and advanced usage
 </Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

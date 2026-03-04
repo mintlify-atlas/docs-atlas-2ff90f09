@@ -1,0 +1,235 @@
+---
+title: Managing Restaurants
+description: Add, edit, and organize your restaurant database with manual entry and Yelp autocomplete
+---
+
+Toni maintains a local database of restaurants you've visited or want to visit. Manage your restaurant collection manually or use Yelp integration for automatic data enrichment.
+
+## Adding Restaurants Manually
+
+Create a restaurant entry from the Restaurants screen:
+
+<Steps>
+  <Step title="Navigate to Restaurants">
+    Press `r` from any screen or use `b`/`f` tabs to reach the Restaurants screen
+  </Step>
+  
+  <Step title="Press 'a' to add">
+    Opens the restaurant form in insert mode
+  </Step>
+  
+  <Step title="Fill in the form">
+    Complete the restaurant details:
+    
+    - **Name** (required): Restaurant name
+    - **Address**: Street address
+    - **City**: City name
+    - **Neighborhood**: Specific neighborhood or district
+    - **Cuisine**: Type of cuisine (e.g., Italian, Thai, Mexican)
+    - **Price Range**: `$`, `$$`, `$$$`, or `$$$$`
+  </Step>
+  
+  <Step title="Save with Ctrl+S">
+    Press `ctrl+s` to save or `esc` to cancel
+  </Step>
+</Steps>
+
+## Yelp Autocomplete Integration
+
+When adding restaurants through the **visit form** or **want-to-visit form**, toni uses Yelp's API to suggest and auto-fill restaurant data:
+
+<Steps>
+  <Step title="Start typing in the Restaurant field">
+    Type at least 2 characters of the restaurant name
+  </Step>
+  
+  <Step title="View autocomplete suggestions">
+    After 300ms debounce, search results appear:
+    - **Narrow terminals** (&lt;110 chars): Dropdown below the field
+    - **Wide terminals** (≥110 chars): Sidebar panel on the right
+  </Step>
+  
+  <Step title="Navigate and select">
+    - `j`/`k` or arrow keys to navigate
+    - `enter` or `tab` to select
+    - `esc` to close without selecting
+  </Step>
+  
+  <Step title="Auto-populated data">
+    Selecting a Yelp suggestion automatically creates the restaurant with:
+    - Name
+    - Full address
+    - City
+    - Neighborhood
+    - Cuisine type
+    - Price range
+    - Geographic coordinates (latitude/longitude)
+    - Yelp Place ID
+  </Step>
+</Steps>
+
+<Tip>
+Yelp autocomplete is only available in visit and want-to-visit forms, not the standalone restaurant form. This is intentional to prevent duplicate entries.
+</Tip>
+
+## Editing Restaurants
+
+Update restaurant information from the detail screen:
+
+<Steps>
+  <Step title="Open restaurant details">
+    Navigate to the restaurant in the list (`j`/`k`) and press `enter` or `l`
+  </Step>
+  
+  <Step title="Press 'e' to edit">
+    Opens the restaurant form with current data pre-filled
+  </Step>
+  
+  <Step title="Modify fields">
+    Update any field except the name (which is required)
+  </Step>
+  
+  <Step title="Save changes">
+    Press `ctrl+s` to save or `esc` to cancel
+  </Step>
+</Steps>
+
+<Note>
+Editing a restaurant updates it across all visits. Changes are tracked for undo/redo.
+</Note>
+
+## Deleting Restaurants
+
+Delete a restaurant and all associated data:
+
+1. Open the restaurant detail screen (`enter` from Restaurants list)
+2. Press `d` to delete
+3. Confirm the deletion (this removes the restaurant, all visits, and any want-to-visit entries)
+4. Press `u` to undo if needed
+
+<Warning>
+Deleting a restaurant also deletes **all visits** to that restaurant and **all want-to-visit entries**. This action can be undone with `u`.
+</Warning>
+
+## Viewing Restaurant Details
+
+The restaurant detail screen shows comprehensive statistics:
+
+### Basic Information
+- Restaurant name
+- Address, city, neighborhood
+- Cuisine type
+- Price range
+
+### Visit Statistics
+- Total visit count
+- Average rating (if ratings provided)
+- Date of last visit
+- Complete visit history
+
+### Visit History Display
+
+The detail screen shows visit history in two formats:
+
+**Timeline view** (for ≤5 visits):
+```
+Jan 15 → 8.5  ·  Dec 20 → 7.0  ·  Nov 8 → 9.0
+```
+
+**Table view** (for >5 visits):
+```
+DATE       RATING    RETURN
+Jan 15     ★ 8.5     ✓
+Dec 20     ★ 7.0     ✓
+Nov 8      ★ 9.0     ✓
+```
+
+<Tip>
+From the restaurant detail screen, press `v` to quickly log a new visit with the restaurant pre-filled.
+</Tip>
+
+## Restaurant Database Schema
+
+Restaurants are stored with these fields (from `internal/model/types.go`):
+
+```go
+type Restaurant struct {
+    ID           int64
+    Name         string
+    Address      string
+    City         string
+    Neighborhood string
+    Cuisine      string
+    PriceRange   string      // $, $$, $$$, $$$$
+    Latitude     *float64    // Optional
+    Longitude    *float64    // Optional
+    PlaceID      string      // Yelp Place ID
+    CreatedAt    time.Time
+}
+```
+
+## Price Range Format
+
+Price ranges follow the standard convention:
+
+- `$`: Budget-friendly (under $10 per person)
+- `$$`: Moderate ($10-25 per person)
+- `$$$`: Upscale ($25-50 per person)
+- `$$$$`: Fine dining ($50+ per person)
+
+<Note>
+The price range field accepts only these exact values: `$`, `$$`, `$$$`, or `$$$$`. Any other value will cause a validation error.
+</Note>
+
+## Searching and Filtering
+
+On the Restaurants screen, use table controls to find restaurants:
+
+- **Sort columns**: Press `s` on any column to cycle sort (none → asc → desc → none)
+- **Filter by value**: Select a cell and press `n` to filter by that value
+- **Clear filters**: Press `N` to clear active filters
+- **Jump to column**: Press `/` then a number (1-9) to jump to a specific column
+- **Hide columns**: Press `c` to hide the active column
+- **Show all columns**: Press `C` to reveal hidden columns
+
+## Restaurant Screen Keybindings
+
+| Key | Action |
+|-----|--------|
+| `a` | Add new restaurant |
+| `v` | Log visit for selected restaurant |
+| `enter` / `l` | Open restaurant details |
+| `e` | Edit restaurant (from detail screen) |
+| `d` | Delete restaurant (from detail screen) |
+| `j`/`k` | Navigate up/down |
+| `tab` / `shift+tab` | Next/previous column |
+| `s` | Cycle sort on active column |
+| `n` | Filter by selected value |
+| `N` | Clear filters |
+| `c` / `C` | Hide/show columns |
+| `b`/`f` | Previous/next tab |
+| `h` | Back to visits |
+| `w` | Go to want-to-visit |
+| `u` / `ctrl+r` | Undo/redo |
+
+## FAQ
+
+<Accordion title="Can I add a restaurant without visiting it?">
+Yes! Add it to your want-to-visit list instead. From the Want to Visit screen, press `a` to add a place you haven't been to yet.
+</Accordion>
+
+<Accordion title="What if the same restaurant name exists in multiple cities?">
+Toni distinguishes restaurants by name AND city. You can have "Pizzeria" in New York and "Pizzeria" in Chicago as separate entries.
+</Accordion>
+
+<Accordion title="Can I import restaurant data from Yelp automatically?">
+Partially. When you use the autocomplete feature in visit/want-to-visit forms, selecting a Yelp result auto-creates the restaurant with full data. There's no bulk import feature.
+</Accordion>
+
+<Accordion title="How do I see all visits to a specific restaurant?">
+Open the restaurant detail screen (press `enter` on the restaurant in the list). The detail view shows complete visit history with dates and ratings.
+</Accordion>
+
+<Accordion title="Can I edit the cuisine or price range later?">
+Yes. Open the restaurant detail, press `e` to edit, and update any fields. Changes apply to the restaurant across all visits.
+</Accordion>

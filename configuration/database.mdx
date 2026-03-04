@@ -1,0 +1,162 @@
+---
+title: Database Configuration
+description: Configure and manage toni's SQLite database for storing restaurant visits and preferences
+---
+
+## Database Location
+
+toni uses SQLite to store all your restaurant data locally. By default, the database is stored at:
+
+```
+~/.toni/toni.db
+```
+
+The application automatically creates this directory and database file on first run.
+
+## Custom Database Location
+
+You can specify a custom database location using the `--db` flag:
+
+```bash
+toni --db /path/to/custom/database.db
+```
+
+This is useful for:
+- Maintaining multiple separate databases
+- Storing data in a synced cloud folder
+- Using a specific project directory
+
+<Note>
+When using a custom path, ensure the parent directory exists and has write permissions.
+</Note>
+
+## Database Schema
+
+toni's SQLite database consists of three main tables defined in `internal/db/db.go:10`:
+
+### Restaurants Table
+
+Stores restaurant information:
+
+```sql
+CREATE TABLE IF NOT EXISTS restaurants (
+    id           INTEGER PRIMARY KEY,
+    name         TEXT NOT NULL,
+    address      TEXT,
+    city         TEXT,
+    neighborhood TEXT,
+    cuisine      TEXT,
+    price_range  TEXT CHECK(price_range IN ('$','$$','$$$','$$$$') OR price_range IS NULL),
+    latitude     REAL,
+    longitude    REAL,
+    place_id     TEXT,
+    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+```
+
+### Visits Table
+
+Stores visit logs with ratings and notes:
+
+```sql
+CREATE TABLE IF NOT EXISTS visits (
+    id            INTEGER PRIMARY KEY,
+    restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
+    visited_on    TEXT,
+    rating        REAL CHECK(rating BETWEEN 1 AND 10 OR rating IS NULL),
+    notes         TEXT,
+    would_return  INTEGER CHECK(would_return IN (0,1) OR would_return IS NULL),
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+```
+
+### Want to Visit Table
+
+Stores restaurants you want to visit:
+
+```sql
+CREATE TABLE IF NOT EXISTS want_to_visit (
+    id            INTEGER PRIMARY KEY,
+    restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
+    notes         TEXT,
+    priority      INTEGER CHECK(priority BETWEEN 1 AND 5 OR priority IS NULL),
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+```
+
+### Indexes
+
+The schema includes performance indexes defined in `internal/db/db.go:43`:
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_visits_restaurant_id ON visits(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_visits_visited_on ON visits(visited_on DESC);
+CREATE INDEX IF NOT EXISTS idx_want_to_visit_restaurant_id ON want_to_visit(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_want_to_visit_priority ON want_to_visit(priority DESC);
+```
+
+## Backing Up Your Database
+
+Since toni is local-first, your data lives entirely in the SQLite database file. To back up your data:
+
+<Steps>
+  <Step title="Locate your database">
+    Find your database at `~/.toni/toni.db` (or your custom location)
+  </Step>
+  
+  <Step title="Copy the database file">
+    ```bash
+    cp ~/.toni/toni.db ~/backups/toni-backup-$(date +%Y%m%d).db
+    ```
+  </Step>
+  
+  <Step title="Verify the backup">
+    ```bash
+    sqlite3 ~/backups/toni-backup-*.db "SELECT COUNT(*) FROM restaurants;"
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Always close toni before backing up or copying the database file to avoid corruption.
+</Warning>
+
+## Restoring from Backup
+
+To restore from a backup:
+
+```bash
+cp ~/backups/toni-backup-20260304.db ~/.toni/toni.db
+```
+
+## Direct Database Access
+
+You can query your database directly using the SQLite CLI:
+
+```bash
+sqlite3 ~/.toni/toni.db
+```
+
+Example queries:
+
+```sql
+-- View all restaurants
+SELECT name, city, cuisine FROM restaurants;
+
+-- View recent visits
+SELECT r.name, v.visited_on, v.rating 
+FROM visits v 
+JOIN restaurants r ON v.restaurant_id = r.id 
+ORDER BY v.visited_on DESC 
+LIMIT 10;
+
+-- Export to CSV
+.mode csv
+.output visits.csv
+SELECT * FROM visits;
+.quit
+```
+
+<Info>
+The database is automatically initialized with the schema when you first run toni. No manual setup is required.
+</Info>

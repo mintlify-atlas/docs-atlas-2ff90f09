@@ -1,0 +1,338 @@
+---
+title: Keybinding Reference
+description: Complete keybinding reference for toni organized by screen and mode
+---
+
+Toni uses vi-style keybindings for efficient navigation. This reference covers all keybindings organized by screen and mode.
+
+## Global Keybindings
+
+Available everywhere:
+
+| Key | Action |
+|-----|--------|
+| `?` | Toggle help screen |
+| `ctrl+c` | Quit immediately |
+| `q` | Quit (from top-level screens) |
+
+<Tip>
+Press `?` anytime to view the full help screen with all keybindings.
+</Tip>
+
+## Navigation Mode (Default)
+
+When browsing tables and lists:
+
+### Movement
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move down one row |
+| `k` / `↑` | Move up one row |
+| `h` / `←` | Go back / previous screen |
+| `l` / `→` | Open / select item |
+| `enter` | Open / select item |
+| `gg` | Jump to top of list |
+| `G` | Jump to bottom of list |
+| `ctrl+d` | Half page down |
+| `ctrl+u` | Half page up |
+| `pgdown` | Half page down |
+| `pgup` | Half page up |
+
+### Tab Navigation
+
+| Key | Action |
+|-----|--------|
+| `b` / `f` | Previous / next tab |
+| `B` / `F` | First / last tab (Visits / Restaurants) |
+| `v` | Go to Visits screen |
+| `r` | Go to Restaurants screen |
+| `w` | Go to Want to Visit screen |
+
+### Table Controls
+
+| Key | Action |
+|-----|--------|
+| `tab` | Next column (move active column right) |
+| `shift+tab` | Previous column (move active column left) |
+| `/` then 1-9 | Jump to specific column number |
+| `s` | Cycle sort on active column (none → asc → desc → none) |
+| `S` | Sort descending (deprecated, use `s` instead) |
+| `n` | Filter by selected cell value |
+| `N` | Clear all filters |
+| `c` | Hide active column |
+| `C` | Show all columns (reveal hidden) |
+
+### Actions
+
+| Key | Action |
+|-----|--------|
+| `a` | Add new entry (context-sensitive) |
+| `e` | Edit current entry (from detail screens) |
+| `d` | Delete current entry (from detail screens) |
+| `u` | Undo last action |
+| `ctrl+r` | Redo last undone action |
+| `esc` | Back / cancel |
+
+## Visits Screen
+
+Specific to the Visits table:
+
+| Key | Action |
+|-----|--------|
+| `a` | Add new visit (quick-add) |
+| `r` | Go to Restaurants screen |
+| `w` | Go to Want to Visit screen |
+| `enter` / `l` | Open visit details |
+| `j`/`k` | Navigate visits |
+| `b`/`f` | Switch between tabs |
+| `tab` | Next column |
+| `s` | Cycle sort on active column |
+| `n` | Filter by cell value |
+| `/` | Jump to column (press 1-9) |
+| `gg` / `G` | Top / bottom |
+| `ctrl+d` / `ctrl+u` | Half page down/up |
+
+<Note>
+From the Visits screen, pressing `a` opens the visit form for quick-add with all fields empty.
+</Note>
+
+## Restaurants Screen
+
+Specific to the Restaurants table:
+
+| Key | Action |
+|-----|--------|
+| `a` | Add new restaurant |
+| `v` | Log visit for selected restaurant |
+| `w` | Go to Want to Visit screen |
+| `h` | Back to Visits screen |
+| `enter` / `l` | Open restaurant details |
+| `j`/`k` | Navigate restaurants |
+| `b`/`f` | Switch tabs |
+| `tab` / `shift+tab` | Next/previous column |
+| `s` | Cycle sort |
+| `n` | Filter by value |
+| `c` / `C` | Hide/show columns |
+| `u` / `ctrl+r` | Undo/redo |
+
+<Tip>
+Press `v` on any restaurant to quickly log a visit with the restaurant pre-filled.
+</Tip>
+
+## Want to Visit Screen
+
+Specific to the Want-to-Visit table:
+
+| Key | Action |
+|-----|--------|
+| `a` | Add new want-to-visit entry |
+| `v` | Go to Visits screen |
+| `r` | Go to Restaurants screen |
+| `enter` / `l` | Open entry details |
+| `j`/`k` | Navigate entries |
+| `b`/`f` | Switch tabs |
+| `tab` | Next column |
+| `s` | Cycle sort |
+| `n` | Filter by value |
+| `/` | Jump to column |
+| `gg` / `G` | Top/bottom |
+| `ctrl+d` / `ctrl+u` | Half page down/up |
+
+## Visit Detail Screen
+
+When viewing a single visit:
+
+| Key | Action |
+|-----|--------|
+| `h` / `esc` / `b` | Back to Visits list |
+| `e` | Edit this visit |
+| `d` | Delete this visit |
+
+## Restaurant Detail Screen
+
+When viewing a single restaurant with visit history:
+
+| Key | Action |
+|-----|--------|
+| `h` / `esc` / `b` | Back to Restaurants list |
+| `v` | Add visit for this restaurant |
+| `e` | Edit restaurant details |
+| `d` | Delete restaurant (and all visits) |
+
+<Warning>
+Deleting a restaurant from the detail screen also deletes all associated visits and want-to-visit entries.
+</Warning>
+
+## Want-to-Visit Detail Screen
+
+When viewing a single want-to-visit entry:
+
+| Key | Action |
+|-----|--------|
+| `h` / `esc` / `b` | Back to Want to Visit list |
+| `c` | Convert to visit (mark as visited) |
+| `e` | Edit this entry |
+| `d` | Delete this entry |
+
+<Tip>
+Press `c` to convert a want-to-visit entry to a visit. This opens the visit form with the restaurant pre-filled.
+</Tip>
+
+## Insert/Edit Mode (Forms)
+
+When in any form (add/edit visit, restaurant, or want-to-visit):
+
+| Key | Action |
+|-----|--------|
+| `tab` | Next field |
+| `shift+tab` | Previous field |
+| `ctrl+s` | Save form |
+| `esc` | Cancel and return without saving |
+
+### Autocomplete (Restaurant Field)
+
+When the autocomplete dropdown is visible:
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move down in results |
+| `k` / `↑` | Move up in results |
+| `enter` / `tab` | Select highlighted suggestion |
+| `esc` | Close dropdown |
+
+<Note>
+Autocomplete appears after typing 2+ characters in the Restaurant field (visit and want-to-visit forms only).
+</Note>
+
+## Undo/Redo System
+
+Undo and redo are available globally in navigation mode:
+
+| Key | Action |
+|-----|--------|
+| `u` | Undo last action |
+| `ctrl+r` | Redo last undone action |
+
+Supported operations:
+- Create/update/delete visits
+- Create/update/delete restaurants
+- Create/update/delete want-to-visit entries
+- Convert want-to-visit to visit
+
+<Tip>
+After any delete operation, you'll see "(u to undo)" in the status message. Press `u` immediately to restore.
+</Tip>
+
+## Column Jump Feature
+
+Quickly jump to specific columns in tables:
+
+<Steps>
+  <Step title="Press '/'">
+    Activates column jump mode
+  </Step>
+  
+  <Step title="Press a number 1-9">
+    Jumps to that column (if it exists)
+  </Step>
+  
+  <Step title="Press 'esc' to cancel">
+    Exits column jump mode without jumping
+  </Step>
+</Steps>
+
+Example: `/3` jumps to the third visible column.
+
+## Sorting Columns
+
+Cycle through sort modes on any column:
+
+1. Navigate to the column with `tab` / `shift+tab`
+2. Press `s` repeatedly to cycle:
+   - No sort (default order)
+   - Ascending (A→Z, 0→9, oldest→newest)
+   - Descending (Z→A, 9→0, newest→oldest)
+   - Back to no sort
+
+The active sort is shown in the column header.
+
+## Filtering Tables
+
+Filter tables by cell values:
+
+<Steps>
+  <Step title="Navigate to a cell">
+    Use `j`/`k` and `tab` to select a cell with the value you want
+  </Step>
+  
+  <Step title="Press 'n' to filter">
+    Shows only rows matching that value in that column
+  </Step>
+  
+  <Step title="Press 'N' to clear">
+    Removes all active filters
+  </Step>
+</Steps>
+
+Example: Navigate to a cell with Rating `8`, press `n` to see only visits with rating 8.
+
+## Help Screen
+
+Press `?` to toggle the full-screen help overlay:
+
+- Organized by screen and mode
+- Shows all available keybindings
+- Press `?` or `esc` to close
+
+## Keybinding Design Philosophy
+
+Toni's keybindings follow these principles:
+
+1. **Vi-style navigation**: `h`/`j`/`k`/`l` for movement
+2. **Context-aware**: Keys perform different actions based on screen
+3. **Mnemonic**: `a` = add, `e` = edit, `d` = delete, `v` = visit, `r` = restaurants, `w` = want-to-visit
+4. **No modes confusion**: Clear distinction between navigation (nav mode) and forms (insert mode)
+5. **Consistent patterns**: Same keys work similarly across screens
+
+## Quick Reference Summary
+
+### Most Common Actions
+
+| Task | Keybinding |
+|------|------------|
+| Add visit | `a` (from Visits screen) |
+| Add restaurant | `a` (from Restaurants screen) |
+| Log visit for restaurant | `v` (from Restaurants list) |
+| Open details | `enter` or `l` |
+| Edit entry | `e` (from detail screen) |
+| Delete entry | `d` (from detail screen) |
+| Go back | `h`, `b`, or `esc` |
+| Save form | `ctrl+s` |
+| Cancel form | `esc` |
+| Undo | `u` |
+| Help | `?` |
+| Quit | `q` (top-level) or `ctrl+c` |
+
+### Navigation Essentials
+
+| Movement | Keybinding |
+|----------|------------|
+| Up/Down | `k`/`j` or arrows |
+| Next/Prev tab | `f`/`b` |
+| Top/Bottom | `gg`/`G` |
+| Page up/down | `ctrl+u`/`ctrl+d` |
+
+### Table Essentials
+
+| Action | Keybinding |
+|--------|------------|
+| Next column | `tab` |
+| Sort column | `s` (cycle) |
+| Filter value | `n` |
+| Clear filter | `N` |
+| Jump to column | `/` then number |
+
+<Tip>
+Bookmark this page for quick reference, or press `?` in the app to see context-sensitive help anytime.
+</Tip>

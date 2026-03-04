@@ -1,0 +1,408 @@
+---
+title: Data Model
+description: Complete database schema and type definitions for toni's SQLite database
+---
+
+toni uses SQLite for local-first data storage. The database contains three main tables: `restaurants`, `visits`, and `want_to_visit`, all connected through foreign key relationships.
+
+## Database Location
+
+By default, toni stores its database at `~/.toni/toni.db`. You can override this with the `--db` flag:
+
+```bash
+toni --db /path/to/custom/database.db
+```
+
+## Schema Overview
+
+The database schema is automatically initialized when you first run toni. All tables use auto-incrementing integer primary keys and timestamps.
+
+### Restaurants Table
+
+Stores restaurant information, either manually entered or imported from Yelp.
+
+```sql
+CREATE TABLE IF NOT EXISTS restaurants (
+    id           INTEGER PRIMARY KEY,
+    name         TEXT NOT NULL,
+    address      TEXT,
+    city         TEXT,
+    neighborhood TEXT,
+    cuisine      TEXT,
+    price_range  TEXT CHECK(price_range IN ('$','$$','$$$','$$$$') OR price_range IS NULL),
+    latitude     REAL,
+    longitude    REAL,
+    place_id     TEXT,
+    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+```
+
+<ResponseField name="id" type="INTEGER" required>
+  Auto-incrementing primary key
+</ResponseField>
+
+<ResponseField name="name" type="TEXT" required>
+  Restaurant name (required field)
+</ResponseField>
+
+<ResponseField name="address" type="TEXT">
+  Street address (optional)
+</ResponseField>
+
+<ResponseField name="city" type="TEXT">
+  City name (optional)
+</ResponseField>
+
+<ResponseField name="neighborhood" type="TEXT">
+  Neighborhood or district (optional)
+</ResponseField>
+
+<ResponseField name="cuisine" type="TEXT">
+  Cuisine type (e.g., "Italian", "Japanese") (optional)
+</ResponseField>
+
+<ResponseField name="price_range" type="TEXT">
+  Price indicator: `$`, `$$`, `$$$`, or `$$$$` (optional, validated by CHECK constraint)
+</ResponseField>
+
+<ResponseField name="latitude" type="REAL">
+  GPS latitude coordinate (optional)
+</ResponseField>
+
+<ResponseField name="longitude" type="REAL">
+  GPS longitude coordinate (optional)
+</ResponseField>
+
+<ResponseField name="place_id" type="TEXT">
+  Yelp business ID for API integration (optional)
+</ResponseField>
+
+<ResponseField name="created_at" type="TEXT" required>
+  ISO 8601 timestamp (automatically set to current time)
+</ResponseField>
+
+### Visits Table
+
+Records individual restaurant visits with ratings and notes.
+
+```sql
+CREATE TABLE IF NOT EXISTS visits (
+    id            INTEGER PRIMARY KEY,
+    restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
+    visited_on    TEXT,
+    rating        REAL CHECK(rating BETWEEN 1 AND 10 OR rating IS NULL),
+    notes         TEXT,
+    would_return  INTEGER CHECK(would_return IN (0,1) OR would_return IS NULL),
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+```
+
+<ResponseField name="id" type="INTEGER" required>
+  Auto-incrementing primary key
+</ResponseField>
+
+<ResponseField name="restaurant_id" type="INTEGER" required>
+  Foreign key reference to `restaurants.id` (cascades on delete)
+</ResponseField>
+
+<ResponseField name="visited_on" type="TEXT">
+  Visit date in ISO 8601 format: `YYYY-MM-DD` (optional)
+</ResponseField>
+
+<ResponseField name="rating" type="REAL">
+  Numeric rating from 1.0 to 10.0 (optional, validated by CHECK constraint)
+</ResponseField>
+
+<ResponseField name="notes" type="TEXT">
+  Free-form notes about the visit (optional)
+</ResponseField>
+
+<ResponseField name="would_return" type="INTEGER">
+  Boolean flag: `1` for yes, `0` for no, `NULL` for unspecified (optional)
+</ResponseField>
+
+<ResponseField name="created_at" type="TEXT" required>
+  ISO 8601 timestamp (automatically set to current time)
+</ResponseField>
+
+### Want to Visit Table
+
+Tracks restaurants you want to visit with priority levels.
+
+```sql
+CREATE TABLE IF NOT EXISTS want_to_visit (
+    id            INTEGER PRIMARY KEY,
+    restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
+    notes         TEXT,
+    priority      INTEGER CHECK(priority BETWEEN 1 AND 5 OR priority IS NULL),
+    created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+```
+
+<ResponseField name="id" type="INTEGER" required>
+  Auto-incrementing primary key
+</ResponseField>
+
+<ResponseField name="restaurant_id" type="INTEGER" required>
+  Foreign key reference to `restaurants.id` (cascades on delete)
+</ResponseField>
+
+<ResponseField name="notes" type="TEXT">
+  Why you want to visit, recommendations, etc. (optional)
+</ResponseField>
+
+<ResponseField name="priority" type="INTEGER">
+  Priority level from 1 to 5, where 5 is highest priority (optional, validated by CHECK constraint)
+</ResponseField>
+
+<ResponseField name="created_at" type="TEXT" required>
+  ISO 8601 timestamp (automatically set to current time)
+</ResponseField>
+
+## Database Indexes
+
+toni creates indexes for common query patterns:
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_visits_restaurant_id ON visits(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_visits_visited_on ON visits(visited_on DESC);
+CREATE INDEX IF NOT EXISTS idx_want_to_visit_restaurant_id ON want_to_visit(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_want_to_visit_priority ON want_to_visit(priority DESC);
+```
+
+<Accordion title="Index Details">
+  - `idx_visits_restaurant_id`: Optimizes lookups of all visits for a specific restaurant
+  - `idx_visits_visited_on`: Enables fast sorting by visit date (descending)
+  - `idx_want_to_visit_restaurant_id`: Optimizes want-to-visit lookups by restaurant
+  - `idx_want_to_visit_priority`: Enables fast sorting by priority (descending)
+</Accordion>
+
+## Go Type Definitions
+
+toni uses strongly-typed Go structs for database operations.
+
+### Core Types
+
+```go
+// Restaurant represents a restaurant entity
+type Restaurant struct {
+    ID           int64
+    Name         string
+    Address      string
+    City         string
+    Neighborhood string
+    Cuisine      string
+    PriceRange   string     // "$", "$$", "$$$", or "$$$$"
+    Latitude     *float64   // pointer allows NULL
+    Longitude    *float64   // pointer allows NULL
+    PlaceID      string     // Yelp business ID
+    CreatedAt    time.Time
+}
+
+// Visit represents a visit to a restaurant
+type Visit struct {
+    ID           int64
+    RestaurantID int64
+    VisitedOn    string     // ISO 8601 date (YYYY-MM-DD)
+    Rating       *float64   // pointer allows NULL, value 1.0-10.0
+    Notes        string
+    WouldReturn  *bool      // pointer allows NULL
+    CreatedAt    time.Time
+}
+
+// WantToVisit represents a place the user wants to visit
+type WantToVisit struct {
+    ID           int64
+    RestaurantID int64
+    Notes        string
+    Priority     *int       // pointer allows NULL, value 1-5
+    CreatedAt    time.Time
+}
+```
+
+### Input Types
+
+Used when creating new records:
+
+```go
+// NewRestaurant represents data for creating a restaurant
+type NewRestaurant struct {
+    Name         string
+    Address      string
+    City         string
+    Neighborhood string
+    Cuisine      string
+    PriceRange   string
+    Latitude     *float64
+    Longitude    *float64
+    PlaceID      string
+}
+
+// NewVisit represents data for creating a visit
+type NewVisit struct {
+    RestaurantID int64
+    VisitedOn    string
+    Rating       *float64
+    Notes        string
+    WouldReturn  *bool
+}
+
+// NewWantToVisit represents data for creating a want_to_visit entry
+type NewWantToVisit struct {
+    RestaurantID int64
+    Notes        string
+    Priority     *int
+}
+```
+
+### View Types
+
+Used for displaying joined data:
+
+```go
+// VisitRow represents a visit with joined restaurant data for list display
+type VisitRow struct {
+    ID             int64
+    VisitedOn      string
+    RestaurantName string
+    City           string
+    Address        string
+    PriceRange     string
+    Rating         *float64
+    WouldReturn    *bool
+    Notes          string
+    RestaurantID   int64
+}
+
+// RestaurantRow represents a restaurant with aggregate stats
+type RestaurantRow struct {
+    ID           int64
+    Name         string
+    Address      string
+    City         string
+    Neighborhood string
+    Cuisine      string
+    PriceRange   string
+    AvgRating    *float64    // average of all visit ratings
+    VisitCount   int         // total number of visits
+    LastVisit    string      // date of most recent visit
+}
+
+// WantToVisitRow represents want_to_visit with joined restaurant data
+type WantToVisitRow struct {
+    ID             int64
+    RestaurantName string
+    Address        string
+    City           string
+    Neighborhood   string
+    Cuisine        string
+    PriceRange     string
+    Priority       *int
+    Notes          string
+    RestaurantID   int64
+    CreatedAt      time.Time
+}
+```
+
+## Referential Integrity
+
+<Warning>
+  Deleting a restaurant cascades to all associated visits and want-to-visit entries. This operation cannot be undone (though toni provides an undo feature during the session).
+</Warning>
+
+When you delete a restaurant, toni executes a transaction:
+
+```go
+// From internal/db/restaurants.go
+func DeleteRestaurant(db *sql.DB, id int64) error {
+    tx, err := db.Begin()
+    if err != nil {
+        return fmt.Errorf("failed to begin transaction: %w", err)
+    }
+    defer tx.Rollback()
+
+    // Delete all visits for this restaurant
+    if _, err := tx.Exec("DELETE FROM visits WHERE restaurant_id = ?", id); err != nil {
+        return fmt.Errorf("failed to delete visits: %w", err)
+    }
+
+    // Delete all want_to_visit entries for this restaurant
+    if _, err := tx.Exec("DELETE FROM want_to_visit WHERE restaurant_id = ?", id); err != nil {
+        return fmt.Errorf("failed to delete want_to_visit entries: %w", err)
+    }
+
+    // Delete the restaurant itself
+    if _, err := tx.Exec("DELETE FROM restaurants WHERE id = ?", id); err != nil {
+        return fmt.Errorf("failed to delete restaurant: %w", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("failed to commit transaction: %w", err)
+    }
+
+    return nil
+}
+```
+
+## Null Handling
+
+Go uses pointers to represent nullable SQL fields:
+
+<Accordion title="Reading Nullable Fields">
+  ```go
+  // Reading a nullable rating field
+  var rating sql.NullFloat64
+  err := db.QueryRow(query, id).Scan(&rating)
+  
+  var visit Visit
+  if rating.Valid {
+      r := rating.Float64
+      visit.Rating = &r  // convert to *float64
+  } else {
+      visit.Rating = nil // NULL in database
+  }
+  ```
+</Accordion>
+
+<Accordion title="Writing Nullable Fields">
+  ```go
+  var latitude interface{}
+  if restaurant.Latitude != nil {
+      latitude = *restaurant.Latitude
+  }
+  // latitude will be nil (SQL NULL) if the pointer was nil
+  
+  _, err := db.Exec(query, name, latitude, longitude)
+  ```
+</Accordion>
+
+## Schema Initialization
+
+The schema is created automatically when you first run toni:
+
+```go
+// From internal/db/db.go
+func Open(dbPath string) (*sql.DB, error) {
+    db, err := sql.Open("sqlite", dbPath)
+    if err != nil {
+        return nil, fmt.Errorf("failed to open database: %w", err)
+    }
+
+    if err := db.Ping(); err != nil {
+        db.Close()
+        return nil, fmt.Errorf("failed to ping database: %w", err)
+    }
+
+    // Execute schema creation (CREATE TABLE IF NOT EXISTS)
+    if _, err := db.Exec(schema); err != nil {
+        db.Close()
+        return nil, fmt.Errorf("failed to initialize schema: %w", err)
+    }
+
+    return db, nil
+}
+```
+
+<Note>
+  The `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` statements make schema initialization idempotent. Running toni multiple times on the same database is safe.
+</Note>

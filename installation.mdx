@@ -1,0 +1,175 @@
+---
+title: Installation
+description: Install toni from source or run directly with Go
+---
+
+# Installation
+
+Get started with toni in just a few steps. No complex dependencies, no Docker containers—just Go.
+
+## Prerequisites
+
+- Go 1.21 or later
+- A terminal that supports ANSI colors (most modern terminals work)
+
+## Installation Methods
+
+<Steps>
+  <Step title="Install from Source">
+    The recommended way to install toni is using `go install`:
+
+    ```bash
+    go install github.com/mihirchanduka/toni@latest
+    ```
+
+    This will install the `toni` binary to your `$GOPATH/bin` directory (typically `~/go/bin`).
+
+    <Tip>
+    Make sure `~/go/bin` is in your `PATH`. Add this to your shell profile if needed:
+    ```bash
+    export PATH="$HOME/go/bin:$PATH"
+    ```
+    </Tip>
+  </Step>
+
+  <Step title="Clone and Build Manually (Alternative)">
+    If you prefer to build from source:
+
+    ```bash
+    git clone https://github.com/mihirchanduka/toni.git
+    cd toni
+    go build -o toni main.go
+    ```
+
+    Then move the binary to a directory in your `PATH`:
+
+    ```bash
+    mv toni /usr/local/bin/  # or ~/bin/ or anywhere in your PATH
+    ```
+  </Step>
+
+  <Step title="Run Directly with go run (Development)">
+    You can also run toni directly without installing:
+
+    ```bash
+    go run main.go
+    ```
+
+    Or with a custom database location:
+
+    ```bash
+    go run main.go --db ~/my-food.db
+    ```
+  </Step>
+</Steps>
+
+## Command-Line Flags
+
+From `cmd/root.go:20-31`:
+
+<CodeGroup>
+```bash --version
+toni --version
+```
+
+```bash --db
+toni --db /path/to/database.db
+```
+
+```bash --yelp-key
+toni --yelp-key YOUR_API_KEY
+```
+</CodeGroup>
+
+### Available Flags
+
+| Flag | Description | Default |
+|------|-------------|--------|
+| `--version` | Show version and exit | - |
+| `--db` | Path to SQLite database file | `~/.toni/toni.db` |
+| `--yelp-key` | Yelp Fusion API key | env: `YELP_API_KEY` |
+
+## Database Location
+
+By default, toni stores your data in `~/.toni/toni.db`. The directory is created automatically on first run.
+
+### Custom Database Path
+
+```bash
+toni --db /path/to/your/database.db
+```
+
+### Multiple Databases
+
+You can maintain separate databases for different purposes:
+
+```bash
+# Personal dining log
+toni --db ~/.toni/personal.db
+
+# Work lunch tracker
+toni --db ~/.toni/work.db
+
+# Travel food journal
+toni --db ~/.toni/travel.db
+```
+
+<Tip>
+Create shell aliases for quick access to different databases:
+```bash
+alias toni-personal="toni --db ~/.toni/personal.db"
+alias toni-work="toni --db ~/.toni/work.db"
+```
+</Tip>
+
+## Backing Up Your Data
+
+Since toni uses a single SQLite file, backups are simple:
+
+```bash
+# Simple copy
+cp ~/.toni/toni.db ~/backups/toni-backup-$(date +%Y%m%d).db
+
+# Compress for long-term storage
+tar -czf ~/backups/toni-$(date +%Y%m%d).tar.gz ~/.toni/toni.db
+```
+
+<Warning>
+Always stop toni before copying the database file to avoid corruption. SQLite handles concurrent reads, but copying while writes are happening can cause issues.
+</Warning>
+
+## Environment Variables
+
+toni supports `.env` and `.env.local` files in your current directory:
+
+```bash .env
+YELP_API_KEY=your_api_key_here
+```
+
+<Note>
+Environment variables are loaded in this order of precedence:
+1. Command-line flags (`--yelp-key`)
+2. Environment variables (`YELP_API_KEY`)
+3. `.env.local` file
+4. `.env` file
+5. Stored API key in `~/.toni/yelp_api_key`
+</Note>
+
+## Verify Installation
+
+Check that toni is installed correctly:
+
+```bash
+toni --version
+```
+
+You should see output like:
+```
+toni version dev
+```
+
+## Next Steps
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Launch toni and log your first visit
+</Card>

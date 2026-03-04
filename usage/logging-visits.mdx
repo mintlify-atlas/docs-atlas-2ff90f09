@@ -1,0 +1,194 @@
+---
+title: Logging Visits
+description: Learn how to log and track restaurant visits in toni, including ratings, dates, and notes
+---
+
+Logging visits is toni's core feature. Track every restaurant experience with ratings, dates, notes, and whether you'd return.
+
+## Quick-Add from Visits Screen
+
+The fastest way to log a visit is from the Visits screen:
+
+<Steps>
+  <Step title="Open the Visits screen">
+    Press `v` from any screen or navigate using `b`/`f` tabs
+  </Step>
+  
+  <Step title="Press 'a' to add a visit">
+    This opens the visit form in insert mode
+  </Step>
+  
+  <Step title="Fill in the form fields">
+    Use `tab` and `shift+tab` to navigate between fields:
+    
+    - **Restaurant** (required): Search for a restaurant name
+    - **Visit Date** (optional): Natural date format like "June 20, 2025"
+    - **Rating** (optional): 1-10 scale, decimals allowed
+    - **Would Return?** (optional): `y` or `n`
+    - **Notes**: Add any details about your experience
+  </Step>
+  
+  <Step title="Save with Ctrl+S">
+    Press `ctrl+s` to save or `esc` to cancel
+  </Step>
+</Steps>
+
+## Add Visit from Restaurants Screen
+
+You can also log a visit directly from the Restaurants screen:
+
+<Steps>
+  <Step title="Navigate to Restaurants">
+    Press `r` from any screen or use `b`/`f` tabs
+  </Step>
+  
+  <Step title="Select a restaurant">
+    Use `j`/`k` to navigate to the restaurant
+  </Step>
+  
+  <Step title="Press 'v' to log a visit">
+    This opens the visit form with the restaurant pre-filled
+  </Step>
+  
+  <Step title="Complete and save">
+    Fill in the remaining fields and press `ctrl+s`
+  </Step>
+</Steps>
+
+<Tip>
+Logging a visit from the Restaurants screen pre-fills the restaurant name, saving you time!
+</Tip>
+
+## Rating Scale
+
+Ratings use a **1-10 scale** with decimal support:
+
+- **1-3**: Poor experience
+- **4-6**: Average/acceptable
+- **7-8**: Good experience
+- **9-10**: Excellent/exceptional
+
+Decimals are supported for precision (e.g., `7.5`, `8.2`).
+
+```
+Rating: 8.5
+```
+
+<Note>
+Ratings are optional. Leave blank if you prefer not to rate a particular visit.
+</Note>
+
+## Date Format
+
+The **Visit Date** field accepts natural date formats:
+
+- Full format: `June 20, 2025`
+- Month abbreviation: `Jun 20, 2025`
+- ISO format: `2025-06-20`
+
+The date is stored internally as ISO 8601 format (`YYYY-MM-DD`) and displayed in human-readable formats throughout the app.
+
+<Tip>
+Leave the date field blank to use today's date automatically.
+</Tip>
+
+## Would Return Field
+
+The **Would Return** field captures whether you'd visit the restaurant again:
+
+- `y`, `yes`, or `1` = Yes (displayed with ✓)
+- `n`, `no`, or `0` = No (displayed with ✗)
+- Leave blank if unsure or not applicable
+
+This field appears with color coding:
+- Green ✓ for "yes"
+- Red ✗ for "no"
+
+## Adding Notes
+
+The **Notes** field supports up to 500 characters:
+
+```
+Notes: Amazing carbonara! Generous portions. 
+Service was friendly but slow. Would recommend 
+the tiramisu.
+```
+
+Use notes to capture:
+- Specific dishes you tried
+- Service quality
+- Ambiance details
+- Who you dined with
+- Special occasions
+
+## Restaurant Autocomplete
+
+When entering a restaurant name, toni uses **Yelp integration** for autocomplete:
+
+<Steps>
+  <Step title="Type at least 2 characters">
+    Start typing the restaurant name in the Restaurant field
+  </Step>
+  
+  <Step title="View search results">
+    After 300ms, autocomplete suggestions appear in a dropdown or sidebar (on wide terminals)
+  </Step>
+  
+  <Step title="Navigate results">
+    - `j`/`k` or `↓`/`↑`: Move through results
+    - `enter` or `tab`: Select a suggestion
+    - `esc`: Close the dropdown
+  </Step>
+  
+  <Step title="Auto-save restaurant data">
+    Selecting a suggestion automatically creates the restaurant with address, city, cuisine, and location data
+  </Step>
+</Steps>
+
+<Note>
+If you type a restaurant name that doesn't exist in your database, toni will create it automatically when you save the visit.
+</Note>
+
+## Editing Visits
+
+To edit an existing visit:
+
+1. Navigate to the visit in the Visits screen (`j`/`k`)
+2. Press `enter` or `l` to open visit details
+3. Press `e` to edit
+4. Modify fields and save with `ctrl+s`
+
+<Tip>
+Edits are tracked with undo support. Press `u` to undo recent changes.
+</Tip>
+
+## Form Keybindings
+
+When in the visit form (insert mode):
+
+| Key | Action |
+|-----|--------|
+| `tab` | Next field |
+| `shift+tab` | Previous field |
+| `ctrl+s` | Save visit |
+| `esc` | Cancel and return |
+| `j`/`k` | Navigate autocomplete (when dropdown is open) |
+| `enter` | Select autocomplete suggestion |
+
+## FAQ
+
+<Accordion title="Can I log multiple visits to the same restaurant?">
+Yes! Each visit is tracked separately with its own date, rating, and notes. View all visits to a restaurant from the Restaurant detail screen.
+</Accordion>
+
+<Accordion title="What happens if I don't provide a date?">
+The current date is used automatically when you save the visit.
+</Accordion>
+
+<Accordion title="Can I log a visit without a rating?">
+Absolutely. All fields except the restaurant name are optional. Log as much or as little as you want.
+</Accordion>
+
+<Accordion title="How do I delete a visit?">
+Open the visit detail screen (`enter` from the Visits list), then press `d` to delete. You can undo with `u` if needed.
+</Accordion>

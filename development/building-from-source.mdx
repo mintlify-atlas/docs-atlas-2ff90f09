@@ -1,0 +1,463 @@
+---
+title: Building from Source
+description: Step-by-step guide to building, testing, and releasing toni locally
+---
+
+## Prerequisites
+
+### Required
+
+<CardGroup cols={2}>
+  <Card title="Go 1.22+" icon="golang">
+    Download from [go.dev/dl](https://go.dev/dl)
+    
+    Verify: `go version`
+  </Card>
+  
+  <Card title="Git" icon="git">
+    For cloning the repository
+    
+    Verify: `git --version`
+  </Card>
+</CardGroup>
+
+### Optional
+
+- **Make** - For using Makefile shortcuts (not currently present in repo)
+- **Yelp API Key** - For testing restaurant autocomplete ([get one here](https://www.yelp.com/developers/v3/manage_app))
+
+---
+
+## Clone the Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/toni.git
+cd toni
+```
+
+<Note>
+Replace `YOUR_USERNAME` with the actual repository owner.
+</Note>
+
+---
+
+## Build Commands
+
+### Development Build
+
+Build for your current platform:
+
+```bash
+go build -o toni .
+```
+
+This creates a `toni` binary (or `toni.exe` on Windows) in the current directory.
+
+**Run immediately**:
+```bash
+./toni
+```
+
+---
+
+### Install to GOPATH
+
+Install to `$GOPATH/bin` (usually `~/go/bin`):
+
+```bash
+go install
+```
+
+Then run from anywhere (if `~/go/bin` is in your `$PATH`):
+```bash
+toni
+```
+
+---
+
+### Run Without Building
+
+For quick testing during development:
+
+```bash
+go run main.go
+```
+
+**With custom database path**:
+```bash
+go run main.go --db ~/my-food.db
+```
+
+**With Yelp API key**:
+```bash
+export YELP_API_KEY="your-api-key-here"
+go run main.go
+```
+
+---
+
+## Cross-Platform Builds
+
+### Build for Multiple Platforms
+
+Go supports cross-compilation via `GOOS` and `GOARCH` environment variables.
+
+<CodeGroup>
+```bash Linux (amd64)
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o toni_linux_amd64 .
+```
+
+```bash macOS (arm64)
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o toni_darwin_arm64 .
+```
+
+```bash Windows (amd64)
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o toni_windows_amd64.exe .
+```
+
+```bash Linux (arm64)
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o toni_linux_arm64 .
+```
+</CodeGroup>
+
+<Note>
+`CGO_ENABLED=0` is **required** for cross-compilation. toni uses `modernc.org/sqlite` (pure Go) specifically to avoid CGO dependencies.
+</Note>
+
+---
+
+### Build All Platforms
+
+Create release binaries for all supported platforms:
+
+```bash
+#!/bin/bash
+VERSION="v1.0.0"
+CGO_ENABLED=0
+
+for GOOS in linux darwin windows; do
+  for GOARCH in amd64 arm64; do
+    EXT=""
+    if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+    
+    OUTPUT="toni_${GOOS}_${GOARCH}${EXT}"
+    echo "Building $OUTPUT..."
+    
+    GOOS=$GOOS GOARCH=$GOARCH go build \
+      -ldflags="-X main.version=$VERSION" \
+      -o "$OUTPUT" .
+  done
+done
+```
+
+Save as `build-all.sh` and run:
+```bash
+chmod +x build-all.sh
+./build-all.sh
+```
+
+---
+
+## Build with Version Information
+
+Embed version string at compile time:
+
+```bash
+VERSION="v1.2.3"
+go build -ldflags="-X main.version=$VERSION" -o toni .
+```
+
+Verify version:
+```bash
+./toni --version
+# Output: toni version v1.2.3
+```
+
+**How it works**:
+- `main.go` declares `var version = "dev"`
+- `-ldflags "-X main.version=$VERSION"` overrides this at link time
+- Production builds use git tags: `-X main.version=${RELEASE_TAG}`
+
+See: `.github/workflows/release.yml:59`
+
+---
+
+## Running Tests
+
+<Note>
+toni currently has **no test files**. The project prioritizes manual testing in real terminal environments.
+</Note>
+
+### When Tests Are Added
+
+**Run all tests**:
+```bash
+go test ./...
+```
+
+**Run with coverage**:
+```bash
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+```
+
+**Run specific package**:
+```bash
+go test ./internal/db
+```
+
+---
+
+## Development Workflow
+
+### 1. Make Changes
+
+Edit source files in your editor of choice.
+
+**Key directories**:
+- `internal/ui/` - TUI screens and components
+- `internal/db/` - Database queries
+- `internal/model/` - Domain types and messages
+
+### 2. Run Locally
+
+```bash
+go run main.go --db ./test.db
+```
+
+This creates a test database in the current directory instead of `~/.toni/toni.db`.
+
+### 3. Check for Errors
+
+**Compile check** (no build):
+```bash
+go build -o /dev/null .
+```
+
+**Lint** (requires golangci-lint):
+```bash
+golangci-lint run
+```
+
+**Format code**:
+```bash
+go fmt ./...
+```
+
+### 4. Test in Different Terminals
+
+**Important**: TUI apps behave differently across terminals!
+
+Test in:
+- **iTerm2** (macOS) - True color, Unicode
+- **Alacritty** (Linux/macOS/Windows) - True color, high performance
+- **Windows Terminal** (Windows) - True color, Unicode
+- **xterm** (Linux) - 256-color fallback testing
+- **Basic terminal** - Ensure graceful degradation
+
+---
+
+## Creating Releases
+
+### Local Release Build
+
+<Steps>
+  <Step title="Create git tag">
+    ```bash
+    git tag -a v1.0.0 -m "Release v1.0.0"
+    git push origin v1.0.0
+    ```
+  </Step>
+  
+  <Step title="Build binaries">
+    ```bash
+    ./build-all.sh  # See script above
+    ```
+  </Step>
+  
+  <Step title="Package for distribution">
+    ```bash
+    # Unix (tar.gz)
+    tar czf toni_linux_amd64.tar.gz toni_linux_amd64
+    tar czf toni_darwin_arm64.tar.gz toni_darwin_arm64
+    
+    # Windows (zip)
+    zip toni_windows_amd64.zip toni_windows_amd64.exe
+    ```
+  </Step>
+  
+  <Step title="Generate checksums">
+    ```bash
+    sha256sum toni_*.tar.gz toni_*.zip > checksums.txt
+    ```
+  </Step>
+</Steps>
+
+---
+
+### Automated GitHub Release
+
+toni uses GitHub Actions for automated releases.
+
+**Trigger a release**:
+
+<Steps>
+  <Step title="Create release on GitHub">
+    Navigate to **Releases → Draft a new release**
+  </Step>
+  
+  <Step title="Choose tag">
+    Create new tag: `v1.0.0` (must start with `v`)
+  </Step>
+  
+  <Step title="Publish release">
+    Click **Publish release**
+  </Step>
+  
+  <Step title="Wait for workflow">
+    GitHub Actions builds all platforms and uploads artifacts automatically
+  </Step>
+</Steps>
+
+**What happens**:
+1. Workflow triggers on `release.published` event
+2. Builds matrix of 6 platform combinations
+3. Each build uses:
+   - Go 1.23
+   - `CGO_ENABLED=0`
+   - Version from git tag
+4. Binaries packaged as `.tar.gz` (Unix) or `.zip` (Windows)
+5. Uploaded to release as downloadable assets
+6. SHA256 checksums generated and uploaded
+
+See: `.github/workflows/release.yml`
+
+**Release artifacts**:
+```
+toni_linux_amd64.tar.gz
+toni_linux_arm64.tar.gz
+toni_darwin_amd64.tar.gz
+toni_darwin_arm64.tar.gz
+toni_windows_amd64.zip
+toni_windows_arm64.zip
+checksums.txt
+```
+
+---
+
+## Troubleshooting
+
+### Build Errors
+
+**Error: `go: cannot find main module`**
+
+Solution: You're not in the project root. Run `cd` to the directory containing `go.mod`.
+
+**Error: `package X is not in GOROOT`**
+
+Solution: Run `go mod download` to fetch dependencies.
+
+**Error: `undefined: sqlite`**
+
+Solution: Ensure `modernc.org/sqlite` is in `go.mod`. Run `go mod tidy`.
+
+---
+
+### Cross-Compilation Errors
+
+**Error: `cgo is not supported`**
+
+Solution: Set `CGO_ENABLED=0` when cross-compiling:
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build .
+```
+
+**Binary doesn't run on target platform**
+
+Check:
+- Correct `GOOS` and `GOARCH` for target
+- Binary has execute permissions: `chmod +x toni`
+- Target platform architecture matches build
+
+---
+
+### Runtime Issues
+
+**Database errors on startup**
+
+Solution: Ensure write permissions on `~/.toni/` directory:
+```bash
+mkdir -p ~/.toni
+chmod 700 ~/.toni
+```
+
+**Terminal rendering issues**
+
+Check:
+- Terminal size ≥ 72×18: `echo $COLUMNS $LINES`
+- `TERM` environment variable set: `echo $TERM`
+- Try forcing color mode: `export COLORTERM=truecolor`
+
+**Autocomplete not working**
+
+Verify:
+- Yelp API key set: `echo $YELP_API_KEY`
+- Network connectivity to `api.yelp.com`
+- API key validity at [Yelp developer dashboard](https://www.yelp.com/developers/v3/manage_app)
+
+---
+
+## Build Optimization
+
+### Reduce Binary Size
+
+**Strip debug symbols**:
+```bash
+go build -ldflags="-s -w" -o toni .
+```
+
+- `-s`: Omit symbol table
+- `-w`: Omit DWARF debug info
+
+**Result**: ~40% size reduction (from ~15MB to ~9MB)
+
+**Further compression with UPX** (optional):
+```bash
+upx --best --lzma toni
+```
+
+<Note>
+UPX compression can trigger false positives in antivirus software. Use with caution for distributed binaries.
+</Note>
+
+---
+
+### Faster Builds
+
+**Enable build cache** (on by default since Go 1.10):
+```bash
+go env GOCACHE  # View cache location
+```
+
+**Parallel compilation**:
+```bash
+go build -p 8 .  # Use 8 parallel jobs
+```
+
+**Skip unnecessary steps**:
+```bash
+go build -a  # Force rebuild (avoid for dev)
+```
+
+---
+
+## Next Steps
+
+After building:
+
+1. **Try it out**: Run `./toni` and explore the interface
+2. **Read the code**: Start with `main.go`, then `internal/ui/app.go`
+3. **Make changes**: Add a feature or fix a bug
+4. **Share**: Create a pull request with your improvements
+
+See [Contributing Guide](/development/contributing) for code style and PR guidelines.

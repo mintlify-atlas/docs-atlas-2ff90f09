@@ -1,0 +1,344 @@
+---
+title: Backup & Restore
+description: How to back up, restore, and migrate your toni restaurant database
+---
+
+toni stores all data in a single SQLite file, making backups simple and portable. No external database server is required.
+
+## Finding Your Database
+
+By default, toni stores its database at:
+
+```bash
+~/.toni/toni.db
+```
+
+You can verify the location by checking the config directory:
+
+```bash
+ls -la ~/.toni/
+```
+
+<Note>
+  If you specified a custom database path with `--db`, use that path instead.
+</Note>
+
+## Creating Backups
+
+### Simple File Copy
+
+The easiest way to back up your data is to copy the SQLite file:
+
+```bash
+# Make sure toni is not running
+cp ~/.toni/toni.db ~/.toni/toni.db.backup
+```
+
+<Warning>
+  Always close toni before backing up the database file to avoid copying a partially-written database.
+</Warning>
+
+### Timestamped Backups
+
+Create backups with timestamps for version control:
+
+```bash
+cp ~/.toni/toni.db ~/.toni/toni.db.$(date +%Y%m%d_%H%M%S)
+```
+
+This creates files like `toni.db.20260304_143022`.
+
+### Automated Backups with Cron
+
+Schedule daily backups:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add this line (runs daily at 2 AM)
+0 2 * * * cp ~/.toni/toni.db ~/.toni/backups/toni.db.$(date +\%Y\%m\%d)
+```
+
+Create the backup directory first:
+
+```bash
+mkdir -p ~/.toni/backups
+```
+
+### Using SQLite's Backup Command
+
+For more robust backups while toni is running, use SQLite's `.backup` command:
+
+```bash
+sqlite3 ~/.toni/toni.db ".backup ~/.toni/toni.db.backup"
+```
+
+This method is safe even if toni is actively writing to the database.
+
+## Restoring from Backup
+
+### Full Restore
+
+Replace the current database with a backup:
+
+```bash
+# Make sure toni is not running
+cp ~/.toni/toni.db.backup ~/.toni/toni.db
+```
+
+### Verify Integrity
+
+Before restoring, verify the backup is not corrupted:
+
+```bash
+sqlite3 ~/.toni/toni.db.backup "PRAGMA integrity_check;"
+```
+
+Expected output:
+```
+ok
+```
+
+If you see errors, try an older backup.
+
+## Exporting Data
+
+### Export to SQL
+
+Export the entire database as SQL statements:
+
+```bash
+sqlite3 ~/.toni/toni.db .dump > toni_export.sql
+```
+
+This creates a text file with all `CREATE TABLE` and `INSERT` statements.
+
+### Export to CSV
+
+Export individual tables to CSV format:
+
+<Accordion title="Export Visits">
+  ```bash
+  sqlite3 -header -csv ~/.toni/toni.db \
+    "SELECT * FROM visits;" > visits.csv
+  ```
+</Accordion>
+
+<Accordion title="Export Restaurants">
+  ```bash
+  sqlite3 -header -csv ~/.toni/toni.db \
+    "SELECT * FROM restaurants;" > restaurants.csv
+  ```
+</Accordion>
+
+<Accordion title="Export Want to Visit">
+  ```bash
+  sqlite3 -header -csv ~/.toni/toni.db \
+    "SELECT * FROM want_to_visit;" > want_to_visit.csv
+  ```
+</Accordion>
+
+<Accordion title="Export Joined Data">
+  ```bash
+  # Export visits with restaurant names
+  sqlite3 -header -csv ~/.toni/toni.db \
+    "SELECT v.visited_on, r.name, r.city, v.rating, v.notes 
+     FROM visits v 
+     JOIN restaurants r ON v.restaurant_id = r.id 
+     ORDER BY v.visited_on DESC;" > visits_detailed.csv
+  ```
+</Accordion>
+
+### Export to JSON
+
+Use SQLite's JSON output mode (requires SQLite 3.33+):
+
+```bash
+sqlite3 ~/.toni/toni.db \
+  -json "SELECT * FROM visits;" > visits.json
+```
+
+## Importing Data
+
+### Import from SQL Dump
+
+Restore from a SQL dump file:
+
+```bash
+sqlite3 ~/.toni/toni.db < toni_export.sql
+```
+
+<Warning>
+  This assumes an empty database. If restoring to an existing database, you may encounter primary key conflicts.
+</Warning>
+
+### Import CSV Data
+
+Import CSV files back into the database:
+
+```bash
+sqlite3 ~/.toni/toni.db <<EOF
+.mode csv
+.import visits.csv visits
+EOF
+```
+
+<Note>
+  Make sure the CSV file includes a header row matching the table column names.
+</Note>
+
+## Migration Considerations
+
+### Moving to a New Machine
+
+Transfer your entire toni configuration:
+
+```bash
+# On the old machine
+tar -czf toni_backup.tar.gz ~/.toni/
+
+# Transfer toni_backup.tar.gz to the new machine
+
+# On the new machine
+tar -xzf toni_backup.tar.gz -C ~/
+```
+
+This preserves:
+- Database (`toni.db`)
+- Onboarding settings (`onboarding.json`)
+- Yelp API key (`yelp_api_key`)
+- UI preferences (`ui_prefs.json`)
+
+### Schema Compatibility
+
+<Warning>
+  toni does not currently support schema migrations. Backing up before upgrading to a new version is recommended.
+</Warning>
+
+If schema changes occur between versions, you may need to:
+
+1. Export data from the old database
+2. Install the new version of toni
+3. Let it create a fresh database with the new schema
+4. Manually import your old data
+
+### Database Size Management
+
+Compact the database to reclaim unused space:
+
+```bash
+sqlite3 ~/.toni/toni.db "VACUUM;"
+```
+
+Check database size:
+
+```bash
+du -h ~/.toni/toni.db
+```
+
+Typical database sizes:
+- 100 visits: ~50-100 KB
+- 1,000 visits: ~500 KB - 1 MB
+- 10,000 visits: ~5-10 MB
+
+## Syncing Across Devices
+
+### Using Cloud Storage
+
+Store your database in a synced folder:
+
+```bash
+# Dropbox example
+mkdir -p ~/Dropbox/toni
+toni --db ~/Dropbox/toni/toni.db
+```
+
+<Warning>
+  SQLite does not support concurrent writes. Only run toni on one device at a time, or you risk database corruption.
+</Warning>
+
+### Git-Based Sync
+
+For version-controlled backups:
+
+```bash
+cd ~/.toni
+git init
+echo "*.db-journal" > .gitignore
+git add toni.db onboarding.json ui_prefs.json
+git commit -m "Backup toni data"
+git remote add origin <your-repo-url>
+git push -u origin main
+```
+
+<Note>
+  Consider encrypting your repository if it contains sensitive restaurant notes or API keys.
+</Note>
+
+## Disaster Recovery
+
+### Corrupted Database
+
+If toni reports database errors:
+
+```bash
+# Check integrity
+sqlite3 ~/.toni/toni.db "PRAGMA integrity_check;"
+```
+
+If corruption is detected:
+
+```bash
+# Attempt to dump and restore
+sqlite3 ~/.toni/toni.db .dump | sqlite3 ~/.toni/toni_recovered.db
+
+# Verify the recovered database
+sqlite3 ~/.toni/toni_recovered.db "PRAGMA integrity_check;"
+
+# If successful, replace the original
+mv ~/.toni/toni.db ~/.toni/toni.db.corrupted
+mv ~/.toni/toni_recovered.db ~/.toni/toni.db
+```
+
+### Lost Database
+
+If you've lost your database file:
+
+1. Check for automatic backups in `~/.toni/backups/` (if you set up cron)
+2. Search for SQLite journal files: `~/.toni/toni.db-journal`
+3. Check cloud storage sync folders
+4. Restore from your most recent backup
+
+## Backup Best Practices
+
+<Accordion title="Recommended Strategy">
+  - **Daily**: Automated file copy to a backup directory
+  - **Weekly**: Manual verification and cloud storage sync
+  - **Before upgrades**: Full backup of `~/.toni/` directory
+  - **Monthly**: Archive to external storage or remote backup service
+</Accordion>
+
+<Accordion title="What to Back Up">
+  Essential files:
+  - `~/.toni/toni.db` (main database)
+  - `~/.toni/onboarding.json` (settings)
+  - `~/.toni/yelp_api_key` (API key, if you want to preserve it)
+  
+  Optional:
+  - `~/.toni/ui_prefs.json` (UI preferences like column visibility)
+</Accordion>
+
+<Accordion title="Retention Policy">
+  Suggested retention:
+  - Keep daily backups for 7 days
+  - Keep weekly backups for 1 month
+  - Keep monthly backups for 1 year
+  - Delete older backups to save space
+  
+  Example cleanup script:
+  ```bash
+  # Keep only backups from last 7 days
+  find ~/.toni/backups/ -name "toni.db.*" -mtime +7 -delete
+  ```
+</Accordion>

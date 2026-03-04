@@ -1,0 +1,231 @@
+---
+title: UI Preferences
+description: Customize table columns, sorting, filtering, and visibility settings in toni
+---
+
+## Overview
+
+toni automatically saves your UI preferences to `~/.toni/ui_prefs.json` as you work. This includes column visibility, sort order, active columns, and filter state for each table view.
+
+Preferences are defined in `internal/ui/prefs.go:10` and persist across sessions.
+
+## Preferences File Location
+
+```
+~/.toni/ui_prefs.json
+```
+
+This file is automatically created when you first modify any UI setting.
+
+## Preferences Structure
+
+The preferences file stores settings for each table view:
+
+```json
+{
+  "visits": {
+    "sort_key": "visited_on",
+    "sort_desc": true,
+    "hidden_columns": ["notes"],
+    "active_column": "restaurant"
+  },
+  "restaurants": {
+    "sort_key": "name",
+    "sort_desc": false,
+    "hidden_columns": [],
+    "active_column": "name"
+  },
+  "want_to_visit": {
+    "sort_key": "priority",
+    "sort_desc": true,
+    "hidden_columns": [],
+    "active_column": "restaurant"
+  }
+}
+```
+
+## Table Columns
+
+### Restaurants View
+
+From `internal/ui/restaurants.go:42`, available columns:
+
+- **name** - Restaurant name (width: 24)
+- **address** - Street address (width: 20)
+- **city** - City (width: 14)
+- **area** - Neighborhood/area (width: 14)
+- **cuisine** - Cuisine type (width: 14)
+- **price** - Price range ($-$$$$, width: 10)
+- **rating** - Average rating (width: 8)
+- **visits** - Number of visits (width: 8)
+- **last** - Last visit date (width: 14)
+
+### Visits View
+
+Available columns for the visits table:
+
+- **restaurant** - Restaurant name
+- **visited_on** - Visit date
+- **rating** - Visit rating (1-10)
+- **notes** - Visit notes
+- **would_return** - Return preference
+
+### Want to Visit View
+
+Available columns for the want-to-visit list:
+
+- **restaurant** - Restaurant name
+- **notes** - Notes about why you want to visit
+- **priority** - Priority (1-5)
+
+## Keyboard Controls
+
+All table customization is done via keyboard shortcuts defined in `internal/ui/keys.go:48`:
+
+### Column Navigation
+
+- **Tab** - Next column
+- **Shift+Tab** - Previous column
+- **1-9** - Jump to column number (when in column jump mode)
+
+### Sorting
+
+- **s** - Sort active column ascending
+- **S** - Sort active column descending
+- Press **s** again to cycle: ascending → descending → no sort
+
+From `internal/ui/want_to_visit.go:234`, sorting behavior:
+1. First press: sort ascending
+2. Second press: sort descending  
+3. Third press: clear sorting
+
+### Column Visibility
+
+- **c** - Hide active column
+- **C** - Show all hidden columns
+
+<Warning>
+You cannot hide the last visible column. At least one column must remain visible.
+</Warning>
+
+### Filtering
+
+- **n** - Filter by selected cell value
+- **N** - Clear current filter
+
+From `internal/ui/want_to_visit.go:295`, filtering:
+- Filters rows where the active column matches the selected cell's value
+- Case-insensitive matching
+- Press **n** again on the same value to toggle filter off
+
+<Info>
+Filtering is only available for columns with non-empty values in the selected row.
+</Info>
+
+## Customization Workflow
+
+<Steps>
+  <Step title="Navigate to a column">
+    Use **Tab** or **Shift+Tab** to move between columns until you reach the one you want to customize.
+  </Step>
+  
+  <Step title="Apply customization">
+    - Sort: Press **s** or **S**
+    - Hide: Press **c**
+    - Filter: Select a row and press **n**
+  </Step>
+  
+  <Step title="Automatic save">
+    Your preferences are automatically saved to `~/.toni/ui_prefs.json` when you quit toni.
+  </Step>
+</Steps>
+
+## Examples
+
+### Hide the Address Column in Restaurants
+
+1. Open restaurants view (**r**)
+2. Press **Tab** until "address" is highlighted
+3. Press **c** to hide
+4. Press **C** to show all columns again if needed
+
+### Sort Visits by Rating (Highest First)
+
+1. Open visits view (**v**)
+2. Press **Tab** until "rating" is highlighted
+3. Press **S** for descending sort
+
+### Filter Restaurants by City
+
+1. Open restaurants view (**r**)
+2. Navigate to a restaurant in your desired city
+3. Press **Tab** until "city" is highlighted
+4. Press **n** to filter by that city
+5. Press **N** to clear the filter
+
+## Manual Editing
+
+You can manually edit `~/.toni/ui_prefs.json` if needed:
+
+```bash
+# View current preferences
+cat ~/.toni/ui_prefs.json | jq
+
+# Edit with your preferred editor
+vim ~/.toni/ui_prefs.json
+```
+
+<Note>
+toni must be closed when editing this file. Changes are loaded on next launch.
+</Note>
+
+## Resetting Preferences
+
+To reset all UI preferences to defaults:
+
+```bash
+rm ~/.toni/ui_prefs.json
+```
+
+The file will be recreated with default settings on next launch.
+
+### Reset Specific Table
+
+To reset only one table's preferences, edit the JSON file and remove that section:
+
+```bash
+# Reset only restaurants preferences
+jq 'del(.restaurants)' ~/.toni/ui_prefs.json > /tmp/prefs.json
+mv /tmp/prefs.json ~/.toni/ui_prefs.json
+```
+
+## Column Width
+
+Column widths are defined in code (from `internal/ui/restaurants.go:42`) and cannot currently be customized through preferences. They are:
+
+- Fixed per column type
+- Optimized for terminal display
+- Ensure data fits without excessive wrapping
+
+## Implementation Details
+
+Preferences are managed through the `TablePrefs` struct in `internal/ui/prefs.go:11`:
+
+```go
+type TablePrefs struct {
+    SortKey       string   // Column key to sort by
+    SortDesc      bool     // Sort descending if true
+    HiddenColumns []string // List of hidden column keys
+    ActiveColumn  string   // Currently active column key
+}
+```
+
+Each table view (Restaurants, Visits, WantToVisit) implements:
+- `ApplyPrefs(prefs TablePrefs)` - Load saved preferences
+- `Prefs() TablePrefs` - Export current state for saving
+
+These are defined in the `tableController` interface in `internal/ui/table_controls.go:3`.
+
+<Info>
+Preferences are loaded automatically on startup and saved automatically on shutdown. No manual save command is needed.
+</Info>

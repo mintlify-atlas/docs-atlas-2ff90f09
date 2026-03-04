@@ -1,0 +1,198 @@
+---
+title: Yelp API Integration
+description: Set up Yelp Fusion API for restaurant autocomplete and data enrichment
+---
+
+## Overview
+
+toni integrates with the Yelp Fusion API to provide restaurant autocomplete, making it faster to log visits with accurate restaurant information. The integration is optional and toni works fully offline without it.
+
+<Info>
+Yelp integration is **completely optional**. You can use toni without an API key and manually enter restaurant information.
+</Info>
+
+## Getting a Yelp API Key
+
+<Steps>
+  <Step title="Visit Yelp Developers">
+    Go to [https://www.yelp.com/developers/v3/manage_app](https://www.yelp.com/developers/v3/manage_app)
+  </Step>
+  
+  <Step title="Create an app">
+    Sign in with your Yelp account and create a new app. You can use any name and description.
+  </Step>
+  
+  <Step title="Copy your API key">
+    Once created, copy the API key from your app details page.
+  </Step>
+</Steps>
+
+## Configuration Methods
+
+### Method 1: Onboarding Flow (Recommended)
+
+When you first run toni, it will guide you through an interactive onboarding flow defined in `cmd/onboarding.go:433`:
+
+```bash
+toni
+```
+
+The onboarding will:
+1. Ask if you want to enable Yelp autocomplete
+2. If enabled, prompt you to paste your API key
+3. Securely save the key to `~/.toni/yelp_api_key` with `0600` permissions
+4. Create `~/.toni/onboarding.json` to track completion
+
+<Note>
+You can skip onboarding by pressing `Esc` or choosing to disable Yelp. You can always re-enable it later by editing the configuration files.
+</Note>
+
+### Method 2: Command-Line Flag
+
+Provide the API key directly when launching toni:
+
+```bash
+toni --yelp-key YOUR_API_KEY_HERE
+```
+
+This is defined in `cmd/root.go:30`.
+
+### Method 3: Environment Variable
+
+Set the `YELP_API_KEY` environment variable:
+
+```bash
+export YELP_API_KEY=YOUR_API_KEY_HERE
+toni
+```
+
+The environment variable is loaded in `cmd/root.go:39`.
+
+### Method 4: .env File
+
+toni automatically loads `.env` and `.env.local` files from the current directory:
+
+```bash
+# .env
+YELP_API_KEY=YOUR_API_KEY_HERE
+```
+
+This is handled by the `loadDotEnv` function in `cmd/root.go:88`.
+
+## Manual Configuration
+
+You can manually configure Yelp integration by editing files in `~/.toni/`:
+
+### Enable/Disable Yelp
+
+Edit `~/.toni/onboarding.json`:
+
+```json
+{
+  "completed": true,
+  "yelp_enabled": true
+}
+```
+
+Set `yelp_enabled` to `false` to disable Yelp autocomplete.
+
+### Store API Key
+
+Create or edit `~/.toni/yelp_api_key`:
+
+```bash
+echo "YOUR_API_KEY_HERE" > ~/.toni/yelp_api_key
+chmod 600 ~/.toni/yelp_api_key
+```
+
+<Warning>
+Ensure the `yelp_api_key` file has `0600` permissions (owner read/write only) to keep your API key secure.
+</Warning>
+
+## How Autocomplete Works
+
+When Yelp is enabled, toni uses the Yelp Fusion Business Search API for autocomplete:
+
+- **API endpoint**: `https://api.yelp.com/v3/businesses/search` (from `internal/search/yelp.go:12`)
+- **Search behavior**: Filters by `categories=restaurants,food` and limits results to 8 matches
+- **Default location**: Uses "New York, NY" if no location is specified
+- **Sort order**: Results sorted by `best_match`
+- **Timeout**: 5 second request timeout
+
+### Data Retrieved
+
+From `internal/search/yelp.go:29`, autocomplete suggestions include:
+
+- Restaurant name
+- Address (street, city)
+- Neighborhood (stored as state)
+- Cuisine (from first category)
+- Price range (`$`, `$$`, `$$$`, `$$$$`)
+- Latitude/longitude coordinates
+- Yelp business ID (stored as `place_id`)
+
+## Offline Mode
+
+Yelp integration gracefully degrades when:
+
+- No API key is configured
+- Network is unavailable
+- API request fails
+
+In offline mode:
+- Autocomplete is disabled
+- You can still manually enter all restaurant information
+- All other toni features work normally
+
+<Info>
+All restaurant data is stored locally in SQLite. Yelp is only used for initial autocomplete - your data never depends on the Yelp API.
+</Info>
+
+## Priority Order
+
+The API key is loaded with the following priority (from `cmd/root.go:38`):
+
+1. `--yelp-key` command-line flag
+2. `YELP_API_KEY` environment variable
+3. `.env` or `.env.local` file
+4. `~/.toni/yelp_api_key` secure file
+
+Higher priority sources override lower priority ones.
+
+## Troubleshooting
+
+### Autocomplete Not Working
+
+Verify your configuration:
+
+```bash
+# Check if onboarding is complete
+cat ~/.toni/onboarding.json
+
+# Check if API key file exists
+ls -l ~/.toni/yelp_api_key
+
+# Test API key manually
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "https://api.yelp.com/v3/businesses/search?term=pizza&location=NYC"
+```
+
+### Re-running Onboarding
+
+To re-run the onboarding flow:
+
+```bash
+rm ~/.toni/onboarding.json
+toni
+```
+
+### API Rate Limits
+
+Yelp Fusion API has rate limits. If you hit limits:
+- Autocomplete will fail gracefully
+- You can continue entering data manually
+- Wait for the rate limit window to reset
+
+<Note>
+For the most up-to-date Yelp API documentation, visit the [Yelp Fusion API docs](https://docs.developer.yelp.com/docs/fusion-intro).
+</Note>

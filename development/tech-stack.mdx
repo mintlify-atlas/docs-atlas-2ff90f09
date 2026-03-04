@@ -1,0 +1,376 @@
+---
+title: Technology Stack
+description: Complete overview of libraries, frameworks, and tools used in toni
+---
+
+## Core Language
+
+### Go 1.22+
+
+**Why Go**:
+- Single static binary distribution
+- Excellent standard library for databases and HTTP
+- Fast compile times for rapid iteration
+- Strong concurrency primitives (used for async API calls)
+- Cross-platform support without additional dependencies
+
+**Language features used**:
+- Interfaces for component abstraction
+- Goroutines for non-blocking database queries
+- Context for API call cancellation
+- Generics avoided (Go 1.22 compatibility)
+
+---
+
+## TUI Framework
+
+### Bubble Tea v1.2.4
+
+[github.com/charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea)
+
+**Elm-inspired TUI framework** implementing the Model-Update-View pattern.
+
+```go
+type Model struct { /* state */ }
+
+func (m Model) Init() tea.Cmd { /* initialize */ }
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { /* handle input */ }
+func (m Model) View() string { /* render */ }
+```
+
+**Core concepts**:
+- **Messages**: Immutable data representing events
+- **Commands**: Functions that produce messages asynchronously
+- **Model**: Application state
+- **View**: Pure function that renders state to string
+
+**Key features used**:
+- `tea.WithAltScreen()` - Full-screen TUI mode
+- `tea.WindowSizeMsg` - Responsive layout
+- `tea.KeyMsg` - Keyboard input handling
+- `tea.Batch()` - Run multiple commands in parallel
+
+<Note>
+Bubble Tea's message-passing architecture makes state changes **explicit and traceable**, eliminating entire classes of bugs common in imperative UIs.
+</Note>
+
+---
+
+### Bubbles v0.20.0
+
+[github.com/charmbracelet/bubbles](https://github.com/charmbracelet/bubbles)
+
+**Pre-built TUI components** for common UI patterns.
+
+**Components used in toni**:
+
+<CardGroup cols={2}>
+  <Card title="textinput" icon="keyboard">
+    Single-line text input with cursor, selection, validation
+    
+    Used in: Visit and restaurant forms
+  </Card>
+  
+  <Card title="textarea" icon="align-left">
+    Multi-line text editing with scrolling
+    
+    Used in: Notes fields
+  </Card>
+  
+  <Card title="table" icon="table">
+    Sortable, scrollable table with row selection
+    
+    Used in: Visits, restaurants, want-to-visit lists
+  </Card>
+  
+  <Card title="help" icon="circle-question">
+    Context-aware help system
+    
+    Used in: Modal help overlay (`?` key)
+  </Card>
+</CardGroup>
+
+**Customizations**:
+toni extends the base `table` component with:
+- Dynamic column visibility toggling
+- Multi-level sorting (primary + secondary keys)
+- Filter-by-value on selected cell
+- Column-jump shortcuts (`/` + number)
+
+See: `internal/ui/table_controls.go`
+
+---
+
+### Lip Gloss v1.0.0
+
+[github.com/charmbracelet/lipgloss](https://github.com/charmbracelet/lipgloss)
+
+**Style definitions and layout** for terminal UIs.
+
+```go
+var HeaderStyle = lipgloss.NewStyle().
+    Bold(true).
+    Foreground(lipgloss.Color("#7D56F4")).
+    Padding(0, 1).
+    BorderBottom(true)
+```
+
+**Key features**:
+- **Composable styles**: Build complex designs from simple rules
+- **Adaptive colors**: Gracefully degrade for limited color terminals
+- **Layout primitives**: `JoinVertical`, `JoinHorizontal`, `Place`
+- **Rendering optimization**: Caches styled strings to avoid recomputation
+
+**toni's color palette** (internal/ui/styles.go):
+- Primary: `#7D56F4` (purple)
+- Success: `#04B575` (green)
+- Error: `#FF6F61` (red)
+- Muted: `#6C7A89` (gray)
+- Text: Adapts to terminal theme
+
+**Layout utilities used**:
+- `lipgloss.Width()` / `lipgloss.Height()` - Measure rendered strings
+- `lipgloss.Place()` - Center content in terminal
+- `ansi.Truncate()` - Safely truncate ANSI-styled text
+
+---
+
+## Database
+
+### modernc.org/sqlite v1.34.4
+
+[modernc.org/sqlite](https://modernc.org/sqlite)
+
+**Pure Go SQLite driver** - no CGO required.
+
+**Why modernc.org/sqlite over mattn/go-sqlite3**:
+- **Zero C dependencies**: Simpler builds, easier cross-compilation
+- **Single binary**: No need for system SQLite libraries
+- **Cross-platform**: Works identically on all platforms
+- **Performance**: Comparable to CGO-based drivers for toni's workload
+
+**Database configuration**:
+```go
+db, err := sql.Open("sqlite", dbPath)
+```
+
+**Schema features**:
+- Foreign keys: `restaurant_id REFERENCES restaurants(id)`
+- Check constraints: `rating BETWEEN 1 AND 10`
+- Automatic timestamps: `DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
+- Indexes on frequently queried columns
+
+See: `internal/db/db.go:10`
+
+**Query patterns**:
+- Prepared statements via `db.Query()` and `db.Exec()`
+- Transactions for multi-step operations (undo/redo)
+- `LEFT JOIN` for denormalized list views
+
+---
+
+## External APIs
+
+### Yelp Fusion API v3
+
+[developers.yelp.com](https://developers.yelp.com/)
+
+**Restaurant autocomplete** powered by Yelp's business search.
+
+**Integration details**:
+- **Endpoint**: `GET /v3/businesses/search`
+- **Authentication**: Bearer token in `Authorization` header
+- **Rate limit**: 10,000 calls/month (free tier)
+- **Timeout**: 5 seconds per request
+
+**Request parameters**:
+```go
+params := url.Values{}
+params.Set("term", query)              // "joe's pizza"
+params.Set("categories", "restaurants,food")
+params.Set("limit", "8")
+params.Set("location", "New York, NY") // default if not specified
+```
+
+**Response mapping**:
+```json
+{
+  "businesses": [
+    {
+      "name": "Joe's Pizza",
+      "location": { "city": "New York", "address1": "7 Carmine St" },
+      "categories": [{ "title": "Pizza" }],
+      "price": "$",
+      "coordinates": { "latitude": 40.73, "longitude": -74.00 }
+    }
+  ]
+}
+```
+
+Mapped to:
+```go
+type Suggestion struct {
+    Name         string   // "Joe's Pizza"
+    City         string   // "New York"
+    Cuisine      string   // "Pizza"
+    PriceRange   string   // "$"
+    Latitude     float64
+    Longitude    float64
+    PlaceID      string   // Yelp business ID
+}
+```
+
+See: `internal/search/yelp.go`
+
+---
+
+## Dependencies (from go.mod)
+
+### Direct Dependencies
+
+```go
+require (
+    github.com/charmbracelet/bubbles v0.20.0
+    github.com/charmbracelet/bubbletea v1.2.4
+    github.com/charmbracelet/lipgloss v1.0.0
+    modernc.org/sqlite v1.34.4
+)
+```
+
+### Key Transitive Dependencies
+
+**Terminal handling**:
+- `github.com/charmbracelet/x/ansi` - ANSI escape code utilities
+- `github.com/charmbracelet/x/term` - Terminal feature detection
+- `github.com/muesli/termenv` - Cross-platform terminal capabilities
+- `github.com/mattn/go-isatty` - TTY detection
+
+**Text processing**:
+- `github.com/mattn/go-runewidth` - Unicode width calculation
+- `github.com/rivo/uniseg` - Unicode segmentation
+- `github.com/lucasb-eyer/go-colorful` - Color space conversions
+
+**Clipboard**:
+- `github.com/atotto/clipboard` - Cross-platform clipboard access
+
+**SQLite internals** (modernc.org/**):
+- `modernc.org/libc` - C standard library in Go
+- `modernc.org/mathutil` - Math utilities
+- `modernc.org/memory` - Memory management
+
+**Image processing** (for ASCII art):
+- `github.com/qeesung/image2ascii` - Image to ASCII conversion
+- `github.com/nfnt/resize` - Image resizing
+
+**Utilities**:
+- `github.com/google/uuid` - UUID generation
+- `github.com/dustin/go-humanize` - Human-friendly formatting
+- `golang.org/x/sync` - Synchronization primitives
+
+---
+
+## Build Tools
+
+### Go Toolchain
+
+**Build command**:
+```bash
+go build -ldflags="-X main.version=v1.0.0" -o toni .
+```
+
+**Flags used**:
+- `-ldflags`: Set version string at compile time
+- `-o`: Output binary name
+
+**Environment variables**:
+- `CGO_ENABLED=0` - Disable CGO for static binaries
+- `GOOS` - Target operating system (linux, darwin, windows)
+- `GOARCH` - Target architecture (amd64, arm64)
+
+### GitHub Actions
+
+**Workflow**: `.github/workflows/release.yml`
+
+**Build matrix**:
+- `linux/amd64`, `linux/arm64`
+- `darwin/amd64`, `darwin/arm64`
+- `windows/amd64`, `windows/arm64`
+
+**Steps**:
+1. Checkout repository at release tag
+2. Setup Go 1.23
+3. Build with version from tag
+4. Package as `.tar.gz` or `.zip`
+5. Upload to GitHub release
+6. Generate SHA256 checksums
+
+**Release artifacts**:
+```
+toni_linux_amd64.tar.gz
+toni_darwin_arm64.tar.gz
+toni_windows_amd64.zip
+checksums.txt
+```
+
+---
+
+## Development Dependencies
+
+<Note>
+toni has **zero test files** currently. The project prioritizes rapid iteration and manual testing in the terminal.
+</Note>
+
+**Potential additions**:
+- `github.com/stretchr/testify` - Test assertions
+- `github.com/DATA-DOG/go-sqlmock` - Mock database
+- `github.com/charmbracelet/x/exp/teatest` - Bubble Tea testing utilities
+
+---
+
+## Runtime Requirements
+
+### User Environment
+
+**Minimum**:
+- Terminal emulator (any)
+- 72×18 character display
+- Basic ANSI color support (optional)
+
+**Recommended**:
+- True color terminal (iTerm2, Kitty, Alacritty, Windows Terminal)
+- Unicode font with emoji support
+- 100×30+ display for comfortable viewing
+
+**Operating systems**:
+- Linux (any distribution)
+- macOS 10.15+
+- Windows 10+ (with Windows Terminal recommended)
+
+**No external dependencies required** - toni is a single binary.
+
+---
+
+## Technology Philosophy
+
+<CardGroup cols={2}>
+  <Card title="Minimal Dependencies" icon="cubes">
+    Only 4 direct dependencies, all from trusted sources (Charm + modernc.org)
+  </Card>
+  
+  <Card title="Zero CGO" icon="ban">
+    Pure Go for trivial cross-compilation and distribution
+  </Card>
+  
+  <Card title="Stable Versions" icon="shield-check">
+    All dependencies pinned to stable 1.x releases
+  </Card>
+  
+  <Card title="Standard Library First" icon="book">
+    Use stdlib (database/sql, net/http, encoding/json) before third-party
+  </Card>
+</CardGroup>
+
+**Version policy**:
+- Go: Minimum 1.22 for modern generics and standard library features
+- Dependencies: Follow semver, update quarterly
+- No pre-release or unstable dependencies

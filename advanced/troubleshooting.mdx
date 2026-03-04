@@ -1,0 +1,491 @@
+---
+title: Troubleshooting
+description: Common issues and solutions when running toni
+---
+
+This guide covers common issues you might encounter when using toni and how to resolve them.
+
+## Terminal Size Issues
+
+### Terminal Too Small Error
+
+**Symptom**: You see an error message:
+
+```
+Terminal too small
+72x18 detected, need at least 72x18
+```
+
+**Cause**: toni requires a minimum terminal size of 72 columns by 18 rows to display the UI properly.
+
+**Solution**:
+
+<Accordion title="Resize Your Terminal">
+  1. Maximize your terminal window
+  2. Reduce font size to fit more characters
+  3. Check your terminal size:
+     ```bash
+     echo "Columns: $COLUMNS, Rows: $LINES"
+     ```
+  4. Set a larger terminal size:
+     ```bash
+     # For most terminals
+     resize -s 24 80
+     ```
+</Accordion>
+
+<Accordion title="For Remote Sessions (SSH/Tmux)">
+  ```bash
+  # Check terminal dimensions
+  tput cols
+  tput lines
+  
+  # Resize tmux pane (if using tmux)
+  # Press Ctrl+B then type:
+  :resize-pane -x 80 -y 24
+  
+  # For SSH sessions, ensure TERM is set correctly
+  export TERM=xterm-256color
+  ```
+</Accordion>
+
+### UI Elements Cut Off
+
+**Symptom**: Tables or text appear truncated
+
+**Solution**: Increase terminal width to at least 80-100 columns for optimal display:
+
+```bash
+printf '\e[8;30;100t'  # Resize to 30 rows, 100 columns (if your terminal supports it)
+```
+
+## Yelp API Issues
+
+### API Key Not Working
+
+**Symptom**: You see one of these messages:
+
+```
+ℹ  No YELP_API_KEY set — restaurant autocomplete disabled
+ℹ  Yelp autocomplete disabled in onboarding settings
+```
+
+**Diagnosis**:
+
+<Accordion title="Check API Key Configuration">
+  ```bash
+  # Check environment variable
+  echo $YELP_API_KEY
+  
+  # Check stored key
+  cat ~/.toni/yelp_api_key
+  
+  # Check onboarding settings
+  cat ~/.toni/onboarding.json
+  ```
+</Accordion>
+
+**Solutions**:
+
+<Accordion title="1. Set Environment Variable">
+  ```bash
+  export YELP_API_KEY="your_api_key_here"
+  
+  # Make it permanent (add to ~/.bashrc or ~/.zshrc)
+  echo 'export YELP_API_KEY="your_api_key_here"' >> ~/.bashrc
+  source ~/.bashrc
+  ```
+</Accordion>
+
+<Accordion title="2. Use Command-Line Flag">
+  ```bash
+  toni --yelp-key "your_api_key_here"
+  ```
+</Accordion>
+
+<Accordion title="3. Re-run Onboarding">
+  ```bash
+  # Delete onboarding settings to trigger setup again
+  rm ~/.toni/onboarding.json
+  toni
+  ```
+</Accordion>
+
+<Accordion title="4. Manually Configure">
+  ```bash
+  # Create/update the API key file
+  echo "your_api_key_here" > ~/.toni/yelp_api_key
+  chmod 600 ~/.toni/yelp_api_key
+  
+  # Enable Yelp in settings
+  echo '{"completed":true,"yelp_enabled":true}' > ~/.toni/onboarding.json
+  ```
+</Accordion>
+
+### Yelp API Errors
+
+**Symptom**: Restaurant search fails with errors
+
+**Error Messages** (from internal/search/yelp.go):
+
+- `request creation failed`: HTTP request setup failed
+- `network error`: Connection timeout or network unreachable
+- `API error: status 401`: Invalid or expired API key
+- `API error: status 429`: Rate limit exceeded
+- `API error: status 403`: API key doesn't have permission
+- `JSON decode error`: Malformed API response
+
+**Solutions**:
+
+<Accordion title="Status 401 - Invalid API Key">
+  1. Verify your API key at [Yelp Developers](https://www.yelp.com/developers/v3/manage_app)
+  2. Check for extra spaces or newlines:
+     ```bash
+     cat ~/.toni/yelp_api_key | wc -c  # Should be ~32-40 characters
+     ```
+  3. Generate a new API key if needed
+  4. Update your key:
+     ```bash
+     echo "new_api_key_here" > ~/.toni/yelp_api_key
+     ```
+</Accordion>
+
+<Accordion title="Status 429 - Rate Limit">
+  Yelp API has daily limits (typically 5,000 calls/day for free tier):
+  
+  1. Wait 24 hours for the limit to reset
+  2. Reduce search frequency
+  3. Use manual restaurant entry instead of autocomplete
+  4. Consider upgrading your Yelp API tier
+</Accordion>
+
+<Accordion title="Network Errors">
+  ```bash
+  # Test connectivity to Yelp API
+  curl -H "Authorization: Bearer $YELP_API_KEY" \
+    "https://api.yelp.com/v3/businesses/search?term=pizza&location=NYC"
+  
+  # Check DNS resolution
+  nslookup api.yelp.com
+  
+  # Try with longer timeout (edit source if needed)
+  # Default timeout is 5 seconds (see internal/search/yelp.go:24)
+  ```
+</Accordion>
+
+## Database Issues
+
+### Database Locked
+
+**Symptom**: Error messages containing:
+
+```
+failed to open database: database is locked
+```
+
+**Cause**: Another toni process is accessing the database, or the database file is on a network filesystem.
+
+**Solutions**:
+
+<Accordion title="Check for Multiple Instances">
+  ```bash
+  # Find running toni processes
+  ps aux | grep toni
+  
+  # Kill hung processes
+  pkill -9 toni
+  
+  # Check for stale lock files
+  ls -la ~/.toni/
+  rm ~/.toni/toni.db-journal  # Only if toni is not running!
+  ```
+</Accordion>
+
+<Accordion title="Network Filesystem Issues">
+  SQLite doesn't work well on NFS, CIFS, or other network filesystems:
+  
+  ```bash
+  # Check filesystem type
+  df -T ~/.toni/
+  
+  # If on network filesystem, use a local path instead
+  toni --db /tmp/toni.db
+  ```
+</Accordion>
+
+### Database Corruption
+
+**Symptom**: Errors like:
+
+```
+failed to initialize schema: database disk image is malformed
+failed to get restaurant: database disk image is malformed
+```
+
+**Diagnosis**:
+
+```bash
+sqlite3 ~/.toni/toni.db "PRAGMA integrity_check;"
+```
+
+**Recovery**:
+
+<Accordion title="Attempt Automatic Recovery">
+  ```bash
+  # Dump and restore
+  sqlite3 ~/.toni/toni.db .dump > toni_dump.sql
+  
+  # Create new database
+  mv ~/.toni/toni.db ~/.toni/toni.db.corrupted
+  sqlite3 ~/.toni/toni.db < toni_dump.sql
+  
+  # Verify
+  sqlite3 ~/.toni/toni.db "SELECT COUNT(*) FROM restaurants;"
+  ```
+</Accordion>
+
+<Accordion title="Restore from Backup">
+  ```bash
+  # Replace with most recent backup
+  cp ~/.toni/toni.db.backup ~/.toni/toni.db
+  
+  # Verify
+  sqlite3 ~/.toni/toni.db "PRAGMA integrity_check;"
+  ```
+</Accordion>
+
+### Permission Denied
+
+**Symptom**:
+
+```
+failed to create config directory: mkdir ~/.toni: permission denied
+failed to open database: unable to open database file
+```
+
+**Solutions**:
+
+<Accordion title="Fix Directory Permissions">
+  ```bash
+  # Check ownership
+  ls -ld ~/.toni/
+  
+  # Fix permissions
+  mkdir -p ~/.toni
+  chmod 700 ~/.toni
+  chmod 600 ~/.toni/toni.db
+  
+  # Check disk space
+  df -h ~
+  ```
+</Accordion>
+
+<Accordion title="Use Custom Database Path">
+  ```bash
+  # Use a location where you have write access
+  mkdir -p ~/Documents/toni
+  toni --db ~/Documents/toni/toni.db
+  ```
+</Accordion>
+
+### Schema Initialization Failed
+
+**Symptom**:
+
+```
+failed to initialize schema: ...
+```
+
+**Cause**: The database file exists but is corrupted or not a valid SQLite file.
+
+**Solution**:
+
+```bash
+# Check if file is actually a SQLite database
+file ~/.toni/toni.db
+
+# Expected output: "SQLite 3.x database"
+# If not, delete and recreate:
+mv ~/.toni/toni.db ~/.toni/toni.db.invalid
+toni  # Will create fresh database
+```
+
+## Build and Installation Issues
+
+### Command Not Found
+
+**Symptom**:
+
+```bash
+toni: command not found
+```
+
+**Solutions**:
+
+<Accordion title="Check Installation">
+  ```bash
+  # Verify binary location
+  which toni
+  
+  # Check if it's in your PATH
+  echo $PATH
+  
+  # If installed via go install:
+  ls -la ~/go/bin/toni
+  
+  # Add to PATH if needed
+  export PATH="$HOME/go/bin:$PATH"
+  echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.bashrc
+  ```
+</Accordion>
+
+<Accordion title="Manual Build">
+  ```bash
+  git clone https://github.com/mihirchanduka/toni.git
+  cd toni
+  go build -o toni
+  sudo mv toni /usr/local/bin/
+  ```
+</Accordion>
+
+### Dependency Errors
+
+**Symptom**: Build fails with module errors
+
+```bash
+go: module ... not found
+```
+
+**Solution**:
+
+```bash
+# Update dependencies
+go mod download
+go mod tidy
+
+# Rebuild
+go build
+```
+
+## Display and Rendering Issues
+
+### Colors Not Showing
+
+**Symptom**: Text appears without colors or styling
+
+**Cause**: Terminal doesn't support 256 colors or ANSI escape codes
+
+**Solutions**:
+
+```bash
+# Check color support
+echo $TERM
+
+# Set to a color-capable terminal type
+export TERM=xterm-256color
+
+# Test color output
+curl -s https://gist.githubusercontent.com/HaleTom/89ffe32783f89f403bba96bd7bcd1263/raw/ | bash
+```
+
+### Garbled Output
+
+**Symptom**: UI shows strange characters or boxes
+
+**Cause**: Terminal encoding mismatch
+
+**Solution**:
+
+```bash
+# Set UTF-8 locale
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
+# Verify locale
+locale
+```
+
+## Data Entry Issues
+
+### Rating Validation
+
+**Error**: Rating must be between 1.0 and 10.0
+
+**Cause**: SQL constraint check from schema (internal/db/db.go:29):
+
+```sql
+rating REAL CHECK(rating BETWEEN 1 AND 10 OR rating IS NULL)
+```
+
+**Solution**: Enter ratings in the range 1.0-10.0, or leave blank for NULL.
+
+### Price Range Validation
+
+**Error**: Invalid price range
+
+**Cause**: SQL constraint check (internal/db/db.go:18):
+
+```sql
+price_range TEXT CHECK(price_range IN ('$','$$','$$$','$$$$') OR price_range IS NULL)
+```
+
+**Solution**: Use exactly one of: `$`, `$$`, `$$$`, `$$$$`, or leave blank.
+
+### Priority Validation
+
+**Error**: Priority must be between 1 and 5
+
+**Cause**: SQL constraint check (internal/db/db.go:39):
+
+```sql
+priority INTEGER CHECK(priority BETWEEN 1 AND 5 OR priority IS NULL)
+```
+
+**Solution**: Enter priority 1-5 (5 being highest), or leave blank.
+
+## Getting Help
+
+### Enable Verbose Logging
+
+Currently toni doesn't have a verbose flag, but you can check error details:
+
+```bash
+# Run with stderr visible
+toni 2>&1 | tee toni.log
+```
+
+### Collect Diagnostic Information
+
+```bash
+echo "=== System Info ==="
+uname -a
+echo ""
+echo "=== Terminal Info ==="
+echo "TERM=$TERM"
+echo "Columns: $(tput cols), Rows: $(tput lines)"
+echo ""
+echo "=== toni Files ==="
+ls -la ~/.toni/
+echo ""
+echo "=== Database Info ==="
+file ~/.toni/toni.db
+sqlite3 ~/.toni/toni.db "PRAGMA integrity_check;"
+sqlite3 ~/.toni/toni.db "SELECT COUNT(*) AS restaurants FROM restaurants;"
+sqlite3 ~/.toni/toni.db "SELECT COUNT(*) AS visits FROM visits;"
+```
+
+### Report Issues
+
+If you encounter a bug:
+
+1. Check existing issues: https://github.com/mihirchanduka/toni/issues
+2. Create a new issue with:
+   - toni version (`toni --version`)
+   - Operating system and terminal type
+   - Steps to reproduce
+   - Error messages (if any)
+   - Database integrity check results
+
+<Note>
+  Do not share your `yelp_api_key` file or database containing private restaurant notes when reporting issues.
+</Note>

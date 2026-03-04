@@ -1,0 +1,392 @@
+---
+title: Project Structure
+description: Complete directory layout and organization of the toni codebase
+---
+
+## Repository Layout
+
+```
+toni/
+├── cmd/                    # CLI entrypoint and configuration
+├── internal/               # Private application code
+│   ├── db/                # Database layer
+│   ├── model/             # Domain types and messages
+│   ├── ui/                # TUI components and screens
+│   ├── search/            # External API integrations
+│   └── util/              # Shared utilities
+├── .github/workflows/      # CI/CD automation
+├── main.go                 # Application entrypoint
+├── go.mod                  # Go module definition
+└── README.md              # Project documentation
+```
+
+## Core Directories
+
+### `cmd/` - Command Line Interface
+
+Handles argument parsing, configuration loading, and application initialization.
+
+<CodeGroup>
+```go cmd/root.go
+// CLI flag parsing and configuration
+type Config struct {
+    DBPath      string
+    YelpAPIKey  string
+    YelpEnabled bool
+}
+
+func ParseFlags(version string) (*Config, error)
+```
+
+```go cmd/onboarding.go
+// First-run setup wizard
+func runOnboarding(configDir, existingKey string) (*OnboardingSettings, error)
+```
+</CodeGroup>
+
+**Responsibilities**:
+- Parse `--db` and `--yelp-key` flags
+- Load environment variables from `.env` files
+- Manage `~/.toni/` configuration directory
+- Run onboarding flow for new users
+- Load and save Yelp API credentials securely
+
+**Key files**:
+- `root.go` - Flag parsing, config resolution (119 lines)
+- `onboarding.go` - Interactive setup wizard
+
+---
+
+### `internal/db/` - Database Layer
+
+Provides typed database operations using raw SQL and the standard `database/sql` package.
+
+```go
+// Clean interface to SQLite
+func Open(dbPath string) (*sql.DB, error)
+func ListVisits(db *sql.DB, filter string) ([]model.VisitRow, error)
+func CreateVisit(db *sql.DB, visit model.NewVisit) (int64, error)
+func GetRestaurantWithStats(db *sql.DB, id int64) (*model.RestaurantDetail, error)
+```
+
+**Schema** (internal/db/db.go:10):
+- `restaurants` - Restaurant entities with location and metadata
+- `visits` - Visit records linked to restaurants
+- `want_to_visit` - Wishlist entries with priority
+- Indexes on `visited_on`, `restaurant_id`, `priority`
+
+**Key files**:
+- `db.go` - Database initialization and schema (68 lines)
+- `restaurants.go` - Restaurant CRUD and aggregation queries
+- `visits.go` - Visit tracking with joined queries
+- `want_to_visit.go` - Wishlist management
+- `undo_helpers.go` - State capture for undo/redo
+
+<Note>
+All functions accept `*sql.DB` as the first parameter and return domain types from `internal/model`. No database-specific types leak to upper layers.
+</Note>
+
+**Query patterns**:
+- List views use `JOIN` to fetch denormalized rows
+- Detail views use separate queries to avoid N+1
+- All mutations return affected IDs for undo tracking
+
+---
+
+### `internal/model/` - Domain Types
+
+Defines the core data model and Bubble Tea messages. This layer is **pure data** with no business logic.
+
+**`types.go`** (149 lines):
+```go
+// Core entities
+type Restaurant struct {
+    ID           int64
+    Name         string
+    City         string
+    Cuisine      string
+    PriceRange   string  // $, $$, $$$, $$$$
+    // ...
+}
+
+type Visit struct {
+    ID           int64
+    RestaurantID int64
+    VisitedOn    string   // YYYY-MM-DD
+    Rating       *float64 // 1-10 scale
+    WouldReturn  *bool
+    Notes        string
+}
+
+// Denormalized views
+type VisitRow struct {
+    ID             int64
+    VisitedOn      string
+    RestaurantName string
+    City           string
+    Rating         *float64
+    // ...
+}
+```
+
+**`msg.go`** (117 lines):
+```go
+// Bubble Tea messages
+type VisitsLoadedMsg struct {
+    Visits []VisitRow
+}
+
+type VisitSavedMsg struct {
+    ID        int64
+    Operation string  // "insert" or "update"
+    Before    *Visit
+    After     Visit
+}
+
+type ErrorMsg struct {
+    Err error
+}
+
+// Screen and mode enums
+type Screen int  // ScreenVisits, ScreenRestaurants, ...
+type Mode int    // ModeNav, ModeInsert
+```
+
+**Message types**:
+- Data-loaded messages: `VisitsLoadedMsg`, `RestaurantDetailLoadedMsg`
+- Mutation messages: `VisitSavedMsg`, `DeleteVisitMsg`
+- Navigation messages: `FormCancelledMsg`, `ConvertToVisitMsg`
+
+---
+
+### `internal/ui/` - User Interface
+
+Implements all screens, forms, tables, and visual components using Bubble Tea.
+
+**Core files**:
+
+<Steps>
+  <Step title="app.go (1159 lines)">
+    Root Bubble Tea model with:
+    - `Init()` - Load initial data
+    - `Update()` - Route messages and handle input (internal/ui/app.go:81)
+    - `View()` - Render current screen (internal/ui/app.go:277)
+    - Mode handlers: `handleNavMode()`, `handleInsertMode()`
+    - Screen navigation: `switchTopLevel()`, screen-specific nav handlers
+  </Step>
+  
+  <Step title="Table-based screens">
+    - `visits.go` - Visits list with sortable/filterable columns
+    - `restaurants.go` - Restaurants list with aggregated stats
+    - `want_to_visit.go` - Wishlist with priority sorting
+  </Step>
+  
+  <Step title="Detail screens">
+    - `visit_detail.go` - Visit details with edit/delete actions
+    - `restaurant_detail.go` - Restaurant info + visit history
+  </Step>
+  
+  <Step title="Forms">
+    - `visit_form.go` - Visit entry/edit with restaurant autocomplete
+    - `restaurant_form.go` - Restaurant entry/edit with validation
+    - `want_to_visit_form.go` - Wishlist entry with priority picker
+  </Step>
+</Steps>
+
+**Supporting files**:
+- `table_controls.go` - Reusable table component with column management, sorting, filtering
+- `styles.go` - Lip Gloss style definitions (colors, borders, spacing)
+- `keys.go` - Keybinding maps for navigation and forms
+- `help.go` - Context-aware help overlay
+- `graphics.go` - ASCII art, terminal capability detection
+- `prefs.go` - UI preferences (column visibility, sort order) persisted to `~/.toni/prefs.json`
+
+**Model composition**:
+```go
+type Model struct {
+    db               *sql.DB
+    screen           model.Screen
+    mode             model.Mode
+    
+    // Screen-specific models
+    visits            *VisitsModel
+    restaurants       *RestaurantsModel
+    visitForm         *VisitFormModel
+    // ...
+}
+```
+
+Each screen model has its own `Update()` and `View()` methods, called by the root model.
+
+---
+
+### `internal/search/` - External Integrations
+
+Yelp Fusion API client for restaurant autocomplete.
+
+**`yelp.go`** (230 lines):
+```go
+type YelpClient struct {
+    apiKey     string
+    httpClient *http.Client
+}
+
+func (c *YelpClient) Autocomplete(ctx context.Context, query, location string) ([]Suggestion, error)
+```
+
+**Features**:
+- Business search with partial name matching
+- Returns restaurant name, address, city, cuisine, price range
+- 5-second timeout for network requests
+- Graceful degradation if API unavailable
+
+**API response parsing**:
+```go
+type Suggestion struct {
+    Name         string
+    City         string
+    Cuisine      string
+    PriceRange   string  // $, $$, $$$, $$$$
+    Latitude     float64
+    Longitude    float64
+    PlaceID      string  // Yelp business ID
+}
+```
+
+---
+
+### `internal/util/` - Utilities
+
+Shared formatting and validation functions.
+
+**`format.go`** (181 lines):
+```go
+// Date formatting
+func FormatDateHuman(date string) string  // "Today", "Yesterday", "3d ago"
+func TodayISO() string                    // "2026-03-04"
+func ValidateDate(date string) error
+
+// Rating display
+func FormatRating(rating *float64) string       // "8.5/10"
+func FormatRatingStars(rating *float64) string  // "★★★★☆"
+
+// User-friendly helpers
+func FormatWouldReturn(wouldReturn *bool) string  // "Yes", "No", "—"
+func TruncateString(s string, maxLen int) string
+```
+
+**Date input parsing** supports multiple formats:
+- ISO 8601: `2026-03-04`
+- Full month: `January 4, 2026`
+- Short month: `Jan 4, 2026`
+- Numeric: `1/4/2026`, `01/04/2026`
+
+---
+
+## Application Entrypoint
+
+### `main.go` (54 lines)
+
+Orchestrates initialization and launches the TUI:
+
+<Steps>
+  <Step title="Parse CLI flags">
+    ```go
+    config, err := cmd.ParseFlags(version)
+    ```
+  </Step>
+  
+  <Step title="Initialize Yelp client (optional)">
+    ```go
+    if config.YelpAPIKey != "" {
+        yelpClient = search.NewYelpClient(config.YelpAPIKey)
+    }
+    ```
+  </Step>
+  
+  <Step title="Open database">
+    ```go
+    database, err := db.Open(config.DBPath)
+    defer database.Close()
+    ```
+  </Step>
+  
+  <Step title="Run Bubble Tea app">
+    ```go
+    p := tea.NewProgram(ui.New(database, yelpClient, termCaps), tea.WithAltScreen())
+    p.Run()
+    ```
+  </Step>
+</Steps>
+
+---
+
+## CI/CD
+
+### `.github/workflows/release.yml`
+
+Automated release builds for multiple platforms:
+
+**Build matrix**:
+- Linux: amd64, arm64
+- macOS: amd64, arm64
+- Windows: amd64, arm64
+
+**Process**:
+1. Build with version from git tag: `-ldflags="-X main.version=${VERSION}"`
+2. Package as `.tar.gz` (Unix) or `.zip` (Windows)
+3. Upload to GitHub release
+4. Generate SHA256 checksums
+
+**Environment**:
+- Go 1.23
+- `CGO_ENABLED=0` for static binaries
+
+---
+
+## Configuration Files
+
+### `go.mod`
+
+Module definition with minimal dependencies:
+
+```go
+module toni
+
+go 1.22
+
+require (
+    github.com/charmbracelet/bubbles v0.20.0
+    github.com/charmbracelet/bubbletea v1.2.4
+    github.com/charmbracelet/lipgloss v1.0.0
+    modernc.org/sqlite v1.34.4
+)
+```
+
+### Runtime files (in `~/.toni/`)
+
+- `toni.db` - SQLite database with all user data
+- `prefs.json` - UI preferences (column visibility, sort state)
+- `settings.json` - Onboarding completion status
+- `yelp_key` - Encrypted Yelp API key (if configured)
+
+---
+
+## Code Statistics
+
+**Total Go files**: ~25 files
+
+**Lines of code by layer**:
+- `internal/ui/`: ~3000 lines (largest layer - all screens and components)
+- `internal/db/`: ~800 lines (database operations)
+- `internal/model/`: ~270 lines (types and messages)
+- `internal/search/`: ~230 lines (Yelp API client)
+- `internal/util/`: ~180 lines (formatting)
+- `cmd/`: ~300 lines (CLI and onboarding)
+- `main.go`: ~54 lines
+
+**Total**: ~4,800 lines of Go code
+
+<Note>
+The codebase prioritizes **clarity over cleverness**. Each layer has a single responsibility, and dependencies flow downward (UI → Model → DB).
+</Note>
